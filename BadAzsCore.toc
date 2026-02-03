@@ -1,0 +1,8 @@
+## Interface: 11200
+## Title: [|cff355E3BB|r]adAzs |cff32CD32Core|r
+## Notes: Core de utilidades do BadAzs (Focus, Racial, ItemRack)
+## Author: ThePeregris
+## OptionalDeps: ItemRack, QuickHeal
+## Version: 1.0
+
+BadAzsCore.lua
