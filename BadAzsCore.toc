@@ -3,6 +3,7 @@
 ## Notes: Core de utilidades do BadAzs (Focus, Racial, ItemRack)
 ## Author: ThePeregris
 ## OptionalDeps: ItemRack, QuickHeal
-## Version: 1.0
+## Version: 1.3
+
 
 BadAzsCore.lua
