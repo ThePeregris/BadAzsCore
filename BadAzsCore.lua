@@ -1,7 +1,8 @@
--- =====================================
--- BADAZS CORE (Vanilla 1.12 / Lua 5.0)
--- Version: 1.3 (Universal Racial & Vision)
--- =====================================
+-- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
+-- Author:  ThePeregris
+-- Version: 1.4 (Global Attack API)
+-- Target:  Turtle WoW (1.12 / LUA 5.0)
+
 
 BadAzs_Debug = true
 BadAzs_FocusName = nil
@@ -79,9 +80,8 @@ function BadAzs_UseRacial()
         ["Gnome"]    = "Escape Artist",
         ["NightElf"] = "Shadowmeld",
         ["Tauren"]   = "War Stomp",
-        -- TurtleWoW Custom Races
-        ["Goblin"]   = "Rocket Barrage", -- Ou "Rocket Jump" dependendo da spec/patch
-        ["HighElf"]  = "Mana Tap"        -- Ou "Arcane Torrent"
+        ["Goblin"]   = "Rocket Barrage",
+        ["HighElf"]  = "Mana Tap"        
     }
 
     local _, raceEn = UnitRace("player")
@@ -133,8 +133,35 @@ SlashCmdList["BADVIS"] = BadAzs_Vision
 local loadFrame = CreateFrame("Frame")
 loadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 loadFrame:SetScript("OnEvent", function()
-    -- Aplica visão automaticamente ao logar
     BadAzs_Vision()
 end)
 
-BadAzs_Msg("Core v1.3 Loaded. Raciais atualizadas.")
+-- =========================
+-- [8] GLOBAL AUTO-ATTACK API
+-- =========================
+BadAzs_IsAttacking = false -- Variável Global de Estado
+
+local attackListener = CreateFrame("Frame")
+attackListener:RegisterEvent("PLAYER_ENTER_COMBAT")
+attackListener:RegisterEvent("PLAYER_LEAVE_COMBAT")
+attackListener:RegisterEvent("PLAYER_REGEN_DISABLED")
+attackListener:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+attackListener:SetScript("OnEvent", function()
+    -- Sincroniza o estado visual do ataque (espadas cruzadas)
+    if event == "PLAYER_ENTER_COMBAT" then
+        BadAzs_IsAttacking = true
+    elseif event == "PLAYER_LEAVE_COMBAT" then
+        BadAzs_IsAttacking = false
+    end
+end)
+
+function BadAzs_StartAttack()
+    -- Só inicia se: Não estiver batendo + Tiver alvo + Alvo vivo
+    if not BadAzs_IsAttacking and UnitExists("target") and not UnitIsDead("target") then
+        AttackTarget()
+        BadAzs_IsAttacking = true -- Força estado local para prevenir spam imediato
+    end
+end
+
+BadAzs_Msg("Core v1.4 Loaded. Auto-Attack Global Ativo.")
