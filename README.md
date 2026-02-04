@@ -1,2 +1,2 @@
 # BadAzsCore
- Core de utilidades do BadAzs (Focus, Racial, ItemRack)
+ Core de utilidades do BadAzs (Focus, Racial, Item Swap)
