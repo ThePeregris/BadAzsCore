@@ -1,6 +1,6 @@
 -- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
 -- Author:  ThePeregris
--- Version: 1.4 (Global Attack API)
+-- Version: 1.5 (Global Helper Shared)
 -- Target:  Turtle WoW (1.12 / LUA 5.0)
 
 
