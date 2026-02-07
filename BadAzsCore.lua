@@ -116,18 +116,6 @@ function BadAzs_EquipSet(setName)
 end
 
 -- =========================
--- [6] SLASH COMMANDS
--- =========================
-SLASH_BADFOCUS1 = "/badfocus"
-SlashCmdList["BADFOCUS"] = BadAzs_SetFocus
-
-SLASH_BADCLEAR1 = "/badclear"
-SlashCmdList["BADCLEAR"] = BadAzs_ClearFocus
-
-SLASH_BADVIS1 = "/badvis"
-SlashCmdList["BADVIS"] = BadAzs_Vision
-
--- =========================
 -- [7] AUTO-RUN & INITIALIZATION
 -- =========================
 local loadFrame = CreateFrame("Frame")
@@ -164,4 +152,77 @@ function BadAzs_StartAttack()
     end
 end
 
-BadAzs_Msg("Core v1.4 Loaded. Auto-Attack Global Ativo.")
+-- ============================================================
+-- [9] GLOBAL HELPERS (SHARED)
+-- ============================================================
+local BadAzs_SpellCache = {}
+
+function BadAzs_GetSpellID(spellName)
+    if BadAzs_SpellCache[spellName] then return BadAzs_SpellCache[spellName] end
+    
+    local i = 1
+    while true do
+        local spell, rank = GetSpellName(i, "spell")
+        if not spell then break end
+        if spell == spellName then 
+            BadAzs_SpellCache[spellName] = i 
+            return i 
+        end
+        i = i + 1
+    end
+    return nil
+end
+
+function BadAzs_Ready(spellName)
+    if UnitXP_SP3_Addon and UnitXP_SP3_Addon.SpellReady then
+        return UnitXP_SP3_Addon.SpellReady(spellName)
+    end
+
+    local id = BadAzs_GetSpellID(spellName)
+    if not id then return false end
+    
+    local start, duration = GetSpellCooldown(id, "spell")
+    return start == 0
+end
+
+function BadAzs_HasBuff(texturePartialName)
+    for i=0, 31 do
+        local texture = GetPlayerBuffTexture(i)
+        if texture and string.find(texture, texturePartialName) then return true end
+    end
+    return false
+end
+
+function BadAzs_TargetHasDebuff(texturePartialName)
+    for i=1, 16 do
+        local texture = UnitDebuff("target", i)
+        if texture and string.find(texture, texturePartialName) then return true end
+    end
+    return false
+end
+
+function BadAzs_GetTargetHP()
+    if not UnitExists("target") then return 0 end
+    if UnitHealthMax("target") == 0 then return 0 end
+    return (UnitHealth("target") / UnitHealthMax("target")) * 100
+end
+
+function BadAzs_GetMana()
+    if UnitManaMax("player") == 0 then return 0 end
+    return (UnitMana("player") / UnitManaMax("player")) * 100
+end
+
+
+-- =========================
+-- SLASH COMMANDS
+-- =========================
+SLASH_BADFOCUS1 = "/badfocus"
+SlashCmdList["BADFOCUS"] = BadAzs_SetFocus
+
+SLASH_BADCLEAR1 = "/badclear"
+SlashCmdList["BADCLEAR"] = BadAzs_ClearFocus
+
+SLASH_BADVIS1 = "/badvis"
+SlashCmdList["BADVIS"] = BadAzs_Vision
+
+BadAzs_Msg("Core v1.5 Loaded. Auto-Attack Global Ativo.")
