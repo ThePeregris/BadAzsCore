@@ -3,6 +3,7 @@
 ## Notes: Central de utilidades do BadAzs (Focus, Racial, Item Swap)
 ## Author: ThePeregris
 ## OptionalDeps: ItemRack, QuickHeal
-## Version: 1.5
+## Version: 1.6
 
 BadAzsCore.lua
+
