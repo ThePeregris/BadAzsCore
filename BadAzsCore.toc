@@ -2,8 +2,9 @@
 ## Title: [|cff355E3BB|r]adAzs |cff32CD32Core|r
 ## Notes: Central de utilidades do BadAzs (Focus, Racial, Item Swap)
 ## Author: ThePeregris
-## Version: 1.6
+## Version: 1.5
 ## OptionalDeps: ItemRack, QuickHeal
 ## DefaultState: enable
 
 BadAzsCore.lua
+
