@@ -1,25 +1,29 @@
-# [B]adAzs CORE – GLOBAL COMBAT FOUNDATION (v1.4)
+# [B]adAzs CORE – GLOBAL COMBAT FOUNDATION (v1.6)
 
-**Battle Analysis Driven Assistant Zmart System – Core Layer**
-*Turtle WoW Edition – Global Attack API*
+**Battle Analysis Driven Assistant Zmart System – Core Layer** *Turtle WoW Edition – Global Attack API*
 <a href="https://www.paypal.com/donate/?hosted_button_id=VLAFP6ZT8ATGU">
   <img src="https://github.com/ThePeregris/MainAssets/blob/main/Donate_PayPal.png" alt="Tips Appreciated!" align="right" width="120" height="75">
 </a>
 
 ## 1. TECHNICAL MANIFESTO | BadAzs CORE
 
-**Version:** v1.4
+**Version:** v1.6
+
 **Target:** Turtle WoW (Client 1.12.x – LUA 5.0)
+
 **Architecture:** Global Utility Core + Combat State API
+
 **Author:** **ThePeregris**
 
-O **BadAzs CORE** é a **camada fundamental** do ecossistema BadAzs.
-Ele não executa rotações nem decisões de classe — ele fornece **infraestrutura confiável**, **estado global de combate** e **utilidades universais** que outros módulos (Warrior, Rogue, Mage, etc.) podem usar com segurança.
+O **BadAzs CORE** é a **camada fundamental** do ecossistema BadAzs. Ele fornece a infraestrutura confiável e o estado global de combate que módulos específicos (como o **Lunaty**) utilizam para operar com máxima performance e zero erros de script.
 
-✔️ Leve
-✔️ Modular
+✔️ Leve & Modular
+
 ✔️ Zero dependências obrigatórias
-✔️ Compatível com qualquer classe
+
+✔️ Compatível com todas as classes
+
+✔️ Proteção contra erros de ItemRack/Addons ausentes
 
 ---
 
@@ -27,191 +31,79 @@ Ele não executa rotações nem decisões de classe — ele fornece **infraestru
 
 ### ⚔️ Global Auto-Attack API
 
-O CORE expõe uma função única e segura:
+O CORE expõe uma função inteligente que evita o "toggle off" (desligar o ataque por erro de clique):
 
 ```lua
 BadAzs_StartAttack()
-```
-
-Ela garante:
-
-* Nenhum spam de `AttackTarget()`
-* Sincronização com o estado real de combate
-* Controle visual correto (espadas cruzadas)
-* Compatibilidade total com o Core do Turtle WoW
-
-📌 O estado é mantido por:
 
 ```
-BadAzs_IsAttacking (true / false)
-```
 
-Esse valor é atualizado automaticamente via eventos:
-
-* `PLAYER_ENTER_COMBAT`
-* `PLAYER_LEAVE_COMBAT`
+* Sincroniza o estado real de combate via eventos (`PLAYER_ENTER_COMBAT`).
+* Mantém o valor global: `BadAzs_IsAttacking (true / false)`.
 
 ---
 
 ## 3. FOCUS SYSTEM (Target Intelligence)
 
-O CORE implementa um **sistema de Focus leve**, independente do sistema moderno do WoW.
+O sistema de Focus v1.6 foi otimizado para ser estável tanto em UnitFrames quanto em alvos diretos.
 
-### 🎯 Definição de Focus
-
-A prioridade é inteligente:
-
-1. **Mouseover** (Tooltip ativo)
-2. **Target atual**
-3. Nenhum alvo → Focus limpo
-
-```text
-/badfocus
-```
-
-📌 O Focus armazena **apenas o nome da unidade**, garantindo:
-
-* Baixo custo
-* Compatibilidade com Vanilla
-* Uso simples por outros scripts
+| Comando | Função |
+| --- | --- |
+| **`/badfocus`** | Define o Focus no seu alvo atual. |
+| **`/badclear`** | Limpa o foco e notifica no chat. |
+| **`/focusassist`** | Assiste (pega o alvo) de quem está no seu Focus. |
+| **`/focusfollow`** | Segue automaticamente o personagem em Focus. |
 
 ---
 
-### ❌ Limpeza de Focus
+## 4. VISION MODULE (Camera & Nameplates)
 
-```text
-/badclear
-```
-
-Remove qualquer foco ativo e notifica no chat.
-
----
-
-## 4. MOUSEOVER TRACKER
-
-O CORE intercepta o `GameTooltip` para rastrear unidades sob o mouse:
-
-* Atualiza `BadAzs_MouseoverUnit`
-* Limpa automaticamente ao sair do tooltip
-* Não interfere em addons de tooltip
-
-📌 Esse sistema permite:
-
-* Focus inteligente
-* Futuras lógicas de CC, heal ou dispel por mouseover
-* Zero impacto de performance
-
----
-
-## 5. VISION MODULE (Camera & Nameplates)
-
-O **Vision Module** ajusta CVars críticos para combate moderno no Vanilla:
+Ajusta as variáveis de ambiente (CVars) para uma experiência de combate moderna:
 
 ```text
 /badvis
+
 ```
 
-### Configurações aplicadas:
-
-* `cameraDistanceMax = 50`
-* `cameraDistanceMaxFactor = 2`
-* `nameplateDistance = 41`
-* Aplica `View 4` duas vezes (garantia)
-
-✔️ Uso de `pcall()` para evitar erros
-✔️ Seguro contra CVars bloqueadas
-✔️ Executado automaticamente ao entrar no mundo
+* **Camera Max:** 50 metros | **Nameplates:** 41 metros.
+* Executado automaticamente ao logar para garantir visibilidade máxima.
 
 ---
 
-## 6. UNIVERSAL RACIAL ENGINE
+## 5. UNIVERSAL RACIAL ENGINE
 
-O CORE detecta automaticamente a raça do jogador e utiliza o racial correto:
+Detecta e utiliza o racial da sua raça atual, incluindo as raças exclusivas do **Turtle WoW**.
 
-| Raça      | Habilidade           |
-| --------- | -------------------- |
-| Human     | Perception           |
-| Orc       | Blood Fury           |
-| Troll     | Berserking           |
-| Undead    | Will of the Forsaken |
-| Dwarf     | Stoneform            |
-| Gnome     | Escape Artist        |
-| Night Elf | Shadowmeld           |
-| Tauren    | War Stomp            |
-| Goblin    | Rocket Barrage       |
-| High Elf  | Mana Tap             |
-
-📌 O sistema:
-
-* Escaneia o Spellbook
-* Não depende de IDs fixos
-* É compatível com raças custom do Turtle WoW
-
-```lua
-BadAzs_UseRacial()
-```
+* **Suporte:** Human, Orc, Troll, Undead, Dwarf, Gnome, Night Elf, Tauren, **Goblin** e **High Elf**.
+* Chamada simples: `BadAzs_UseRacial()`.
 
 ---
 
-## 7. ITEMRACK WRAPPER (Opcional)
+## 6. SLASH COMMANDS QUICK REFERENCE
 
-Wrapper universal para **ItemRack**, compatível com ambas APIs conhecidas:
-
-```lua
-BadAzs_EquipSet("NOME_DO_SET")
-```
-
-Compatível com:
-
-* `ItemRack_EquipSet`
-* `ItemRack.EquipSet`
-
-📌 Se ItemRack não estiver instalado, a função falha silenciosamente.
+| Comando | Categoria | Descrição |
+| --- | --- | --- |
+| `/badfocus` | Focus | Define Focus no Alvo. |
+| `/badclear` | Focus | Limpa o Focus ativo. |
+| `/focusassist` | Utility | Assiste o alvo do Focus. |
+| `/focusfollow` | Utility | Segue o Focus. |
+| `/badvis` | Vision | Reseta Câmera e Nameplates. |
 
 ---
 
-## 8. SLASH COMMANDS
+## 7. INTEGRAÇÃO & DESENVOLVIMENTO
 
-| Comando     | Função                            |
-| ----------- | --------------------------------- |
-| `/badfocus` | Define Focus (mouseover > target) |
-| `/badclear` | Limpa o Focus                     |
-| `/badvis`   | Aplica Vision Module              |
-
----
-
-## 9. AUTO-INIT & DEBUG
-
-### Inicialização Automática
-
-Ao entrar no mundo:
-
-* Vision Module é aplicado automaticamente
-* CORE é carregado silenciosamente
-
-### Debug Mode
+O Core é projetado para ser "silencioso". Ele não polui o seu chat a menos que o modo de Debug esteja ativo:
 
 ```lua
 BadAzs_Debug = true
+
 ```
 
-Quando ativo:
-
-* Mensagens de estado são exibidas no chat
-* Útil para desenvolvimento e integração com outros módulos
-
 ---
 
-## FILOSOFIA BADAZS CORE
-
-> **Sem decisões.
-> Sem rotação.
-> Apenas fundação sólida.**
-
-O **BadAzs CORE** existe para garantir que **outros scripts nunca precisem reinventar a roda**.
+> **"Uma base sólida é invisível — até faltar."**
+> O BadAzs CORE garante que você foque no combate, enquanto ele cuida da mecânica do jogo.
 
 ---
-
-**BadAzs CORE v1.4**
-*Uma base estável é invisível — até faltar.*
-
+**BadAzs CORE v1.6**
