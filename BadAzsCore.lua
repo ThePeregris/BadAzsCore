@@ -1,12 +1,10 @@
 -- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
--- Author:  ThePeregris
--- Version: 1.5 (Global Attack API)
+-- Author:  ThePeregris & Gemini
+-- Version: 1.8 (Crash Fix)
 -- Target:  Turtle WoW (1.12 / LUA 5.0)
-
 
 BadAzs_Debug = true
 BadAzs_FocusName = nil
-BadAzs_MouseoverUnit = nil
 
 local function BadAzs_Msg(msg)
     if BadAzs_Debug then
@@ -15,35 +13,16 @@ local function BadAzs_Msg(msg)
 end
 
 -- =========================
--- [1] MOUSEOVER TRACKER
--- =========================
-do
-    local origSetUnit = GameTooltip.SetUnit
-    local origHide = GameTooltip.Hide
-    function GameTooltip:SetUnit(unit)
-        BadAzs_MouseoverUnit = unit
-        return origSetUnit(self, unit)
-    end
-    function GameTooltip:Hide()
-        BadAzs_MouseoverUnit = nil
-        return origHide(self)
-    end
-end
-
--- =========================
--- [2] FOCUS SYSTEM
+-- [1] FOCUS SYSTEM
 -- =========================
 function BadAzs_SetFocus()
-    if BadAzs_MouseoverUnit and UnitExists(BadAzs_MouseoverUnit) then
-        BadAzs_FocusName = UnitName(BadAzs_MouseoverUnit)
-    elseif UnitExists("target") then
+    if UnitExists("target") then
         BadAzs_FocusName = UnitName("target")
+        BadAzs_Msg("|cff00ff00Focus Set:|r " .. BadAzs_FocusName)
     else
         BadAzs_FocusName = nil
         BadAzs_Msg("|cffff0000Focus Cleared|r")
-        return
     end
-    BadAzs_Msg("|cff00ff00Focus Set:|r " .. BadAzs_FocusName)
 end
 
 function BadAzs_ClearFocus()
@@ -52,19 +31,37 @@ function BadAzs_ClearFocus()
 end
 
 -- =========================
--- [3] VISION MODULE (CVar)
+-- [2] FOCUS UTILITIES
 -- =========================
-local function SafeSetCVar(cvar, value)
-    pcall(function() SetCVar(cvar, value) end)
+function BadAzs_AssistFocus()
+    if BadAzs_FocusName then
+        AssistByName(BadAzs_FocusName)
+        BadAzs_Msg("Assisting: |cff00ff00" .. BadAzs_FocusName)
+    else
+        BadAzs_Msg("|cffff0000No Focus to Assist!|r")
+    end
 end
 
+function BadAzs_FollowFocus()
+    if BadAzs_FocusName then
+        FollowByName(BadAzs_FocusName)
+        BadAzs_Msg("Following: |cff00ff00" .. BadAzs_FocusName)
+    else
+        BadAzs_Msg("|cffff0000No Focus to Follow!|r")
+    end
+end
+
+-- =========================
+-- [3] VISION MODULE
+-- =========================
 function BadAzs_Vision()
-    SafeSetCVar("cameraDistanceMax", 50) 
-    SafeSetCVar("cameraDistanceMaxFactor", 2) 
-    SafeSetCVar("nameplateDistance", 41)
-    SetView(4) 
-    SetView(4) 
-    BadAzs_Msg("|cff00ccffVision Applied:|r Cam 50 / Nameplates 41.")
+    pcall(function()
+        SetCVar("cameraDistanceMax", 50)
+        SetCVar("cameraDistanceMaxFactor", 2)
+        SetCVar("nameplateDistance", 41)
+    end)
+    SetView(4); SetView(4)
+    BadAzs_Msg("|cff00ccffVision Applied.|r")
 end
 
 -- =========================
@@ -81,42 +78,125 @@ function BadAzs_UseRacial()
         ["NightElf"] = "Shadowmeld",
         ["Tauren"]   = "War Stomp",
         ["Goblin"]   = "Rocket Barrage",
-        ["HighElf"]  = "Mana Tap"        
+        ["HighElf"]  = "Mana Tap"
     }
-
     local _, raceEn = UnitRace("player")
-    local spellToCast = racials[raceEn]
+    local spell = racials[raceEn]
+    if spell then CastSpellByName(spell) end
+end
 
-    if not spellToCast then return end
+-- =========================
+-- [5] AUTO-ATTACK API
+-- =========================
+BadAzs_IsAttacking = false
+local attackListener = CreateFrame("Frame")
+attackListener:RegisterEvent("PLAYER_ENTER_COMBAT")
+attackListener:RegisterEvent("PLAYER_LEAVE_COMBAT")
+attackListener:SetScript("OnEvent", function()
+    if event == "PLAYER_ENTER_COMBAT" then
+        BadAzs_IsAttacking = true
+    elseif event == "PLAYER_LEAVE_COMBAT" then
+        BadAzs_IsAttacking = false
+    end
+end)
 
-    local i = 1
-    while true do
-        local name = GetSpellName(i, BOOKTYPE_SPELL)
-        if not name then break end
-        if name == spellToCast then
-            CastSpell(i, BOOKTYPE_SPELL)
-            return true
-        end
-        i = i + 1
+function BadAzs_StartAttack()
+    if not BadAzs_IsAttacking and UnitExists("target") and not UnitIsDead("target") then
+        AttackTarget()
+        BadAzs_IsAttacking = true
     end
 end
 
 -- =========================
--- [5] ITEMRACK WRAPPER
+-- [6] ITEMRACK WRAPPER
 -- =========================
 function BadAzs_EquipSet(setName)
-    if ItemRack_EquipSet then
-        ItemRack_EquipSet(setName)
-        return true
-    elseif ItemRack and ItemRack.EquipSet then
-        ItemRack.EquipSet(setName)
+    if ItemRack_EquipSet then ItemRack_EquipSet(setName)
+    elseif ItemRack and ItemRack.EquipSet then ItemRack.EquipSet(setName) end
+end
+
+-- =========================
+-- [7] HELPER FUNCTIONS (API GLOBAL)
+-- =========================
+
+-- Retorna HP do Alvo em % (0 a 100)
+function BadAzs_GetTargetHP()
+    if not UnitExists("target") then return 0 end
+    local h = UnitHealth("target")
+    local hmax = UnitHealthMax("target")
+    if not hmax or hmax == 0 then return 0 end
+    return (h / hmax) * 100
+end
+
+-- Retorna Mana do Jogador em % (0 a 100)
+function BadAzs_GetMana()
+    local cur = UnitMana("player")
+    local max = UnitManaMax("player")
+    if max == 0 then return 0 end
+    return (cur / max) * 100
+end
+
+-- Encontra o ID de uma magia pelo nome
+function BadAzs_FindSpellId(spellName)
+    local i = 1
+    while true do
+        local name, rank = GetSpellName(i, BOOKTYPE_SPELL)
+        if not name then break end
+        if name == spellName then return i end
+        i = i + 1
+    end
+    return nil
+end
+
+-- Verifica se a magia esta pronta
+function BadAzs_Ready(spellName)
+    local id = BadAzs_FindSpellId(spellName)
+    if not id then return false end
+
+    local start, duration = GetSpellCooldown(id, BOOKTYPE_SPELL)
+    
+    local isUsable = true
+    local notEnoughMana = false
+
+    -- Proteção: Verifica se a função global existe antes de chamar
+    if IsUsableSpell then
+        isUsable, notEnoughMana = IsUsableSpell(id, BOOKTYPE_SPELL)
+    end
+
+    if isUsable and not notEnoughMana and start == 0 then
         return true
     end
     return false
 end
 
+-- Verifica debuff no alvo (textura)
+function BadAzs_TargetHasDebuff(textureName)
+    local i = 1
+    while UnitDebuff("target", i) do
+        local texture = UnitDebuff("target", i)
+        if string.find(texture, textureName) then
+            return true
+        end
+        i = i + 1
+    end
+    return false
+end
+
+-- Verifica buff no jogador (textura)
+function BadAzs_HasBuff(buffName)
+    local i = 1
+    while UnitBuff("player", i) do
+        local texture = UnitBuff("player", i)
+        if string.find(texture, buffName) then
+            return true
+        end
+        i = i + 1
+    end
+    return false
+end
+
 -- =========================
--- [6] SLASH COMMANDS
+-- [8] SLASH COMMANDS
 -- =========================
 SLASH_BADFOCUS1 = "/badfocus"
 SlashCmdList["BADFOCUS"] = BadAzs_SetFocus
@@ -127,41 +207,19 @@ SlashCmdList["BADCLEAR"] = BadAzs_ClearFocus
 SLASH_BADVIS1 = "/badvis"
 SlashCmdList["BADVIS"] = BadAzs_Vision
 
+SLASH_FOCUSASSIST1 = "/focusassist"
+SlashCmdList["FOCUSASSIST"] = BadAzs_AssistFocus
+
+SLASH_FOCUSFOLLOW1 = "/focusfollow"
+SlashCmdList["FOCUSFOLLOW"] = BadAzs_FollowFocus
+
 -- =========================
--- [7] AUTO-RUN & INITIALIZATION
+-- [9] INITIALIZATION
 -- =========================
 local loadFrame = CreateFrame("Frame")
 loadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 loadFrame:SetScript("OnEvent", function()
     BadAzs_Vision()
+    BadAzs_Msg("v1.8 (Safe Mode) Loaded.")
+    BadAzs_Msg("Use /focusassist and /focusfollow.")
 end)
-
--- =========================
--- [8] GLOBAL AUTO-ATTACK API
--- =========================
-BadAzs_IsAttacking = false -- Variável Global de Estado
-
-local attackListener = CreateFrame("Frame")
-attackListener:RegisterEvent("PLAYER_ENTER_COMBAT")
-attackListener:RegisterEvent("PLAYER_LEAVE_COMBAT")
-attackListener:RegisterEvent("PLAYER_REGEN_DISABLED")
-attackListener:RegisterEvent("PLAYER_REGEN_ENABLED")
-
-attackListener:SetScript("OnEvent", function()
-    -- Sincroniza o estado visual do ataque (espadas cruzadas)
-    if event == "PLAYER_ENTER_COMBAT" then
-        BadAzs_IsAttacking = true
-    elseif event == "PLAYER_LEAVE_COMBAT" then
-        BadAzs_IsAttacking = false
-    end
-end)
-
-function BadAzs_StartAttack()
-    -- Só inicia se: Não estiver batendo + Tiver alvo + Alvo vivo
-    if not BadAzs_IsAttacking and UnitExists("target") and not UnitIsDead("target") then
-        AttackTarget()
-        BadAzs_IsAttacking = true -- Força estado local para prevenir spam imediato
-    end
-end
-
-BadAzs_Msg("Core v1.5 Loaded. Auto-Attack Global Ativo.")
