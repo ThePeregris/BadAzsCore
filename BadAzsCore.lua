@@ -1,6 +1,6 @@
 -- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
--- Author:  ThePeregris & Gemini
--- Version: 1.8 (Crash Fix)
+-- Author:  ThePeregris
+-- Version: 1.9 (Swing Detection)
 -- Target:  Turtle WoW (1.12 / LUA 5.0)
 
 BadAzs_Debug = true
@@ -249,3 +249,4 @@ loadFrame:SetScript("OnEvent", function()
     BadAzs_Msg("Use /focusassist and /focusfollow.")
 
 end)
+
