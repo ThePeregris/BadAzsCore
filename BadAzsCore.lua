@@ -195,8 +195,33 @@ function BadAzs_HasBuff(buffName)
     return false
 end
 
+-- ============================================================
+-- [8] NATIVE SWING TIMER (Virtual SP_SwingTimer)
+-- ============================================================
+if not SP_ST_Data then SP_ST_Data = { main_start = 0 } end
+
+local BadAzs_SwingFrame = CreateFrame("Frame")
+BadAzs_SwingFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
+BadAzs_SwingFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
+BadAzs_SwingFrame:RegisterEvent("SPELLCAST_STOP")
+
+BadAzs_SwingFrame:SetScript("OnEvent", function()
+    -- Se acertou ou errou um golpe branco, registra o tempo
+    if event == "CHAT_MSG_COMBAT_SELF_HITS" or event == "CHAT_MSG_COMBAT_SELF_MISSES" then
+        SP_ST_Data.main_start = GetTime()
+    
+    -- Se terminou de castar Slam, reseta o tempo
+    elseif event == "SPELLCAST_STOP" then
+        if arg1 and arg1 == "Slam" then
+             SP_ST_Data.main_start = GetTime()
+        end
+    end
+end)
+
+BadAzs_Msg("Swing Timer Nativo Ativado.")
+
 -- =========================
--- [8] SLASH COMMANDS
+-- [9] SLASH COMMANDS
 -- =========================
 SLASH_BADFOCUS1 = "/badfocus"
 SlashCmdList["BADFOCUS"] = BadAzs_SetFocus
@@ -214,7 +239,7 @@ SLASH_FOCUSFOLLOW1 = "/focusfollow"
 SlashCmdList["FOCUSFOLLOW"] = BadAzs_FollowFocus
 
 -- =========================
--- [9] INITIALIZATION
+-- [10] INITIALIZATION
 -- =========================
 local loadFrame = CreateFrame("Frame")
 loadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -222,4 +247,5 @@ loadFrame:SetScript("OnEvent", function()
     BadAzs_Vision()
     BadAzs_Msg("v1.8 (Safe Mode) Loaded.")
     BadAzs_Msg("Use /focusassist and /focusfollow.")
+
 end)
