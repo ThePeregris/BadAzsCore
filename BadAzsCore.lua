@@ -221,7 +221,24 @@ end)
 BadAzs_Msg("Swing Timer Nativo Ativado.")
 
 -- =========================
--- [9] SLASH COMMANDS
+-- [9] MOUSEOVER CAST SYSTEM
+-- Baseado em ClassicMouseover / LazySpell
+-- =========================
+function BadAzs_Cast(spellName)
+    local switched = false
+    
+    if UnitExists("mouseover") and UnitIsVisible("mouseover") then
+        TargetUnit("mouseover")
+        switched = true
+    end
+    CastSpellByName(spellName)
+    if switched then
+        TargetLastTarget()
+    end
+end
+
+-- =========================
+-- [10] SLASH COMMANDS
 -- =========================
 SLASH_BADFOCUS1 = "/badfocus"
 SlashCmdList["BADFOCUS"] = BadAzs_SetFocus
@@ -239,7 +256,7 @@ SLASH_FOCUSFOLLOW1 = "/focusfollow"
 SlashCmdList["FOCUSFOLLOW"] = BadAzs_FollowFocus
 
 -- =========================
--- [10] INITIALIZATION
+-- [11] INITIALIZATION
 -- =========================
 local loadFrame = CreateFrame("Frame")
 loadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -249,4 +266,5 @@ loadFrame:SetScript("OnEvent", function()
     BadAzs_Msg("Use /focusassist and /focusfollow.")
 
 end)
+
 
