@@ -1,12 +1,13 @@
 -- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
 -- Author:  ThePeregris
--- Version: 2.0 (Centralized Architecture)
+-- Version: 2.1 (Dodge Detection)
 -- Target:  Turtle WoW (1.12 / LUA 5.0)
 
 BadAzs_Debug = true
 BadAzs_FocusName = nil
+BadAzs_LastDodge = 0 -- Armazena o tempo do último Dodge
 
--- Tabela para armazenar onde estão as magias de "Next Melee" (HS, Cleave, Raptor)
+-- Tabela para armazenar onde estão as magias de "Next Melee"
 BadAzs_SlotCache = { 
     ["Heroic Strike"] = nil, 
     ["Cleave"] = nil, 
@@ -31,7 +32,7 @@ BadAzs_CoreFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 BadAzs_CoreFrame:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
 BadAzs_CoreFrame:RegisterEvent("PLAYER_LEAVE_COMBAT")
 BadAzs_CoreFrame:RegisterEvent("PLAYER_ENTER_COMBAT")
--- Eventos do Swing Timer
+-- Eventos do Swing Timer e Detecção de Dodge
 BadAzs_CoreFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
 BadAzs_CoreFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
 BadAzs_CoreFrame:RegisterEvent("SPELLCAST_STOP")
@@ -43,11 +44,10 @@ BadAzs_IsAttacking = false
 BadAzs_CoreFrame:SetScript("OnEvent", function()
     -- [[ INICIALIZAÇÃO ]]
     if event == "PLAYER_ENTERING_WORLD" then
-        BadAzs_Msg("v2.0 (Core Optimizado) Carregado.")
-        BadAzs_Msg("Comandos: /bafocus, /baassist, /bafollow, /bavis")
-        BadAzs_Vision() -- Aplica visão ao entrar
+        BadAzs_Msg("v2.1 (Core + Dodge) Carregado.")
+        BadAzs_Vision() 
 
-        -- Filtro de Spam de Chat (Movido do Warrior)
+        -- Filtro de Spam de Chat
         local block = {
             "fail", "not ready", "enough rage", "enough mana", "Another action", "range", 
             "No target", "recovered", "Ability", "Must be in", "nothing to attack", 
@@ -70,22 +70,19 @@ BadAzs_CoreFrame:SetScript("OnEvent", function()
     end
 
     -- [[ CACHE DE SLOTS ]]
-    -- Varre as barras para achar HS, Cleave ou Raptor Strike
     if event == "PLAYER_ENTERING_WORLD" or event == "ACTIONBAR_SLOT_CHANGED" then
         for k in pairs(BadAzs_SlotCache) do BadAzs_SlotCache[k] = nil end
-        
         for i = 1, 120 do
             if HasAction(i) then
                 local texture = GetActionTexture(i)
                 if texture then
-                    -- Otimização: Só verifica tooltip se a textura parecer certa
-                    if string.find(texture, "Ability_Rogue_Ambush") or      -- Heroic Strike
-                       string.find(texture, "Ability_Warrior_Cleave") or    -- Cleave
-                       string.find(texture, "Ability_MeleeDamage") then     -- Raptor Strike (Check icon)
+                    if string.find(texture, "Ability_Rogue_Ambush") or      
+                       string.find(texture, "Ability_Warrior_Cleave") or    
+                       string.find(texture, "Ability_MeleeDamage") then     
                         
                         BadAzs_TooltipScanner:SetAction(i)
                         local name = BadAzs_TooltipScannerTextLeft1:GetText()
-                        if name and BadAzs_SlotCache[name] ~= nil then -- Se o nome estiver na nossa lista
+                        if name and BadAzs_SlotCache[name] ~= nil then 
                             BadAzs_SlotCache[name] = i
                         end
                     end
@@ -99,9 +96,18 @@ BadAzs_CoreFrame:SetScript("OnEvent", function()
     elseif event == "PLAYER_LEAVE_COMBAT" then BadAzs_IsAttacking = false 
     end
 
-    -- [[ SWING TIMER ]]
-    if event == "CHAT_MSG_COMBAT_SELF_HITS" or event == "CHAT_MSG_COMBAT_SELF_MISSES" then
+    -- [[ SWING TIMER & DODGE DETECTION ]]
+    if event == "CHAT_MSG_COMBAT_SELF_HITS" then
         SP_ST_Data.main_start = GetTime()
+        
+    elseif event == "CHAT_MSG_COMBAT_SELF_MISSES" then
+        SP_ST_Data.main_start = GetTime()
+        
+        -- Detecção de Dodge para Overpower
+        if arg1 and string.find(arg1, "dodges") then
+            BadAzs_LastDodge = GetTime()
+        end
+        
     elseif event == "SPELLCAST_STOP" then
         if arg1 and arg1 == "Slam" then SP_ST_Data.main_start = GetTime() end
     end
@@ -110,18 +116,13 @@ end)
 -- =========================
 -- [2] SMART CAST SYSTEM
 -- =========================
-
--- Verifica se uma magia "Next Melee" já está ativa (brilhando)
 function BadAzs_IsQueued(spellName)
     local slot = BadAzs_SlotCache[spellName]
-    if slot and IsCurrentAction(slot) then
-        return true
-    end
+    if slot and IsCurrentAction(slot) then return true end
     return false
 end
 
 function BadAzs_Cast(spellName, unit)
-    -- 1. Tratamento de Auto-Attack
     if spellName == "Attack" then
         if not BadAzs_IsAttacking and UnitExists("target") and not UnitIsDead("target") then
             AttackTarget()
@@ -130,24 +131,17 @@ function BadAzs_Cast(spellName, unit)
         return
     end
 
-    -- 2. Proteção de Queue (Heroic Strike / Cleave / Raptor Strike)
-    -- Se já estiver agendado, não casta de novo (para não cancelar)
     if (spellName == "Heroic Strike" or spellName == "Cleave" or spellName == "Raptor Strike") then
         if BadAzs_IsQueued(spellName) then return end
     end
 
-    -- 3. Mouseover Logic
     local switched = false
-    -- Se a unidade não for especificada, tenta mouseover
     if not unit and UnitExists("mouseover") and UnitIsVisible("mouseover") then
         TargetUnit("mouseover")
         switched = true
     end
 
-    -- 4. Executa o Cast
     CastSpellByName(spellName)
-
-    -- 5. Restaura o alvo se mudou
     if switched then TargetLastTarget() end
 end
 
@@ -201,16 +195,11 @@ end
 
 function BadAzs_UseRacial()
     local racials = {
-        ["Human"]    = "Perception",
-        ["Orc"]      = "Blood Fury",
-        ["Troll"]    = "Berserking",
-        ["Undead"]   = "Will of the Forsaken",
-        ["Dwarf"]    = "Stoneform",
-        ["Gnome"]    = "Escape Artist",
-        ["NightElf"] = "Shadowmeld",
-        ["Tauren"]   = "War Stomp",
-        ["Goblin"]   = "Rocket Barrage",
-        ["HighElf"]  = "Mana Tap"
+        ["Human"]    = "Perception", ["Orc"]      = "Blood Fury",
+        ["Troll"]    = "Berserking", ["Undead"]   = "Will of the Forsaken",
+        ["Dwarf"]    = "Stoneform",  ["Gnome"]    = "Escape Artist",
+        ["NightElf"] = "Shadowmeld", ["Tauren"]   = "War Stomp",
+        ["Goblin"]   = "Rocket Barrage", ["HighElf"] = "Mana Tap"
     }
     local _, raceEn = UnitRace("player")
     local spell = racials[raceEn]
@@ -222,7 +211,6 @@ function BadAzs_EquipSet(setName)
     elseif ItemRack and ItemRack.EquipSet then ItemRack.EquipSet(setName) end
 end
 
--- Helpers Globais
 function BadAzs_GetTargetHP()
     if not UnitExists("target") then return 0 end
     local h, hmax = UnitHealth("target"), UnitHealthMax("target")
@@ -280,26 +268,14 @@ end
 -- =========================
 -- [5] SLASH COMMANDS
 -- =========================
-SLASH_BAFOCUS1 = "/bafocus"
-SlashCmdList["BAFOCUS"] = BadAzs_SetFocus
-
-SLASH_BACLEAR1 = "/baclear"
-SlashCmdList["BACLEAR"] = BadAzs_ClearFocus
-
-SLASH_BAVIS1 = "/bavis"
-SlashCmdList["BAVIS"] = BadAzs_Vision
-
-SLASH_BAASSIST1 = "/baassist" -- Mantido padrão curto
-SlashCmdList["BAASSIST"] = BadAzs_AssistFocus
-
-SLASH_BAFOLLOW1 = "/bafollow"
-SlashCmdList["BAFOLLOW"] = BadAzs_FollowFocus
+SLASH_BAFOCUS1 = "/bafocus"; SlashCmdList["BAFOCUS"] = BadAzs_SetFocus
+SLASH_BACLEAR1 = "/baclear"; SlashCmdList["BACLEAR"] = BadAzs_ClearFocus
+SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
+SLASH_BAASSIST1 = "/baassist"; SlashCmdList["BAASSIST"] = BadAzs_AssistFocus
+SLASH_BAFOLLOW1 = "/bafollow"; SlashCmdList["BAFOLLOW"] = BadAzs_FollowFocus
 
 SLASH_BACMD1 = "/ba"
 SlashCmdList["BACMD"] = function(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cff355E3B[BadAzs]|r Core Commands:")
-    DEFAULT_CHAT_FRAME:AddMessage("/bafocus - Set Focus")
-    DEFAULT_CHAT_FRAME:AddMessage("/baclear - Clear Focus")
-    DEFAULT_CHAT_FRAME:AddMessage("/baassist - Assist Focus")
-    DEFAULT_CHAT_FRAME:AddMessage("/bavis - Reset Camera")
+    DEFAULT_CHAT_FRAME:AddMessage("/bafocus, /baclear, /baassist, /bavis")
 end
