@@ -1,30 +1,3 @@
-Perfeito. Essa é a decisão correta para manter o código limpo e modular. O Core será apenas o "motor" do carro, e cada classe (Warrior, Paladin) será responsável por saber como suas próprias peças funcionam.
-
-O que muda nesta versão:
-
-    BadAzsCore.lua (v2.3 - Genérico):
-
-        Removi a tabela BadAzs_SlotCache.
-
-        Removi a função BadAzs_IsQueued.
-
-        Removi o scanner de slots da inicialização.
-
-        Agora ele serve apenas para: Funções básicas (Ready, Mana, HP), Comando /bamo (Mouseover) e Proteção de Chat.
-
-    BadAzsWarrior.lua (v17.4 - Autossuficiente):
-
-        Adicionei a tabela WarriorSlotCache dentro dele.
-
-        Adicionei a lógica de scanner (que estava no Core) para identificar onde estão "Heroic Strike" e "Cleave".
-
-        Criei uma função local BadAzsW_Cast que verifica se o golpe já está ativado antes de castar, substituindo a chamada direta ao Core.
-
-Esta abordagem deixa o Core extremamente leve e impede que o Warrior scanneie magias de Paladino ou vice-versa.
-
-Copie e substitua os arquivos abaixo. Aguardo sua confirmação de que os arquivos foram atualizados para prosseguirmos (se houver mais algo).
-1. BadAzsCore.lua (Limpo e Genérico)
-
 -- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
 -- Author:  ThePeregris
 -- Version: 2.3 (Generic Core)
@@ -249,3 +222,4 @@ SLASH_BAFOCUS1 = "/bafocus"; SlashCmdList["BAFOCUS"] = BadAzs_SetFocus
 SLASH_BACLEAR1 = "/baclear"; SlashCmdList["BACLEAR"] = BadAzs_ClearFocus
 SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
 SLASH_BAASSIST1 = "/baassist"; SlashCmdList["BAASSIST"] = BadAzs_AssistFocus
+
