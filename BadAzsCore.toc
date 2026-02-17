@@ -2,9 +2,10 @@
 ## Title: [|cff355E3BB|r]adAzs |cff32CD32Core|r
 ## Notes: Battle Analysis Driven Assistant Zmart System
 ## Author: ThePeregris
-## Version: 2.1
+## Version: 2.3
 ## OptionalDeps: ItemRack, QuickHeal, UnitXP_SP3
 ## DefaultState: enable
 
 BadAzsCore.lua
+
 
