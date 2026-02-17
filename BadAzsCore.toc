@@ -3,9 +3,10 @@
 ## Notes: Battle Analysis Driven Assistant Zmart System
 ## Author: ThePeregris
 ## Version: 2.3
-## OptionalDeps: ItemRack, QuickHeal, UnitXP_SP3
+## OptionalDeps: ItemRack, QuickHeal
 ## DefaultState: enable
 
 BadAzsCore.lua
+
 
 
