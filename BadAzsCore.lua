@@ -158,6 +158,15 @@ function BadAzs_AssistFocus()
     end
 end
 
+function BadAzs_FollowFocus()
+    if BadAzs_FocusName then
+        FollowByName(BadAzs_FocusName)
+        BadAzs_Msg("Seguindo: |cff00ff00" .. BadAzs_FocusName)
+    else
+        BadAzs_Msg("|cffff0000Nenhum Focus definido!|r")
+    end
+end
+
 function BadAzs_Vision()
     pcall(function()
         SetCVar("cameraDistanceMax", 50)
@@ -223,7 +232,6 @@ end
 
 SLASH_BAFOCUS1 = "/bafocus"; SlashCmdList["BAFOCUS"] = BadAzs_SetFocus
 SLASH_BACLEAR1 = "/baclear"; SlashCmdList["BACLEAR"] = BadAzs_ClearFocus
-SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
 SLASH_BAASSIST1 = "/baassist"; SlashCmdList["BAASSIST"] = BadAzs_AssistFocus
-
-
+SLASH_BAFFOLLOW1 = "/baffollow"; SlashCmdList["BAFFOLLOW"] = BadAzs_FollowFocus
+SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
