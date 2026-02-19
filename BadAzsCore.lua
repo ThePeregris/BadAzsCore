@@ -131,17 +131,20 @@ end
 -- =========================
 -- [4] HELPERS
 -- =========================
+
 function BadAzs_SetFocus()
+    if UnitExists("mouseover") and UnitIsVisible("mouseover") then
+        BadAzs_FocusName = UnitName("mouseover")
+        BadAzs_Msg("|cff00ff00Focus Set (mouseover):|r " .. BadAzs_FocusName)
+        return
+    end
+
     if UnitExists("target") then
         BadAzs_FocusName = UnitName("target")
-        BadAzs_Msg("|cff00ff00Focus Set:|r " .. BadAzs_FocusName)
-    else
-        BadAzs_FocusName = nil
-        BadAzs_Msg("|cffff0000Focus Cleared|r")
+        BadAzs_Msg("|cff00ff00Focus Set (target):|r " .. BadAzs_FocusName)
+        return
     end
-end
 
-function BadAzs_ClearFocus()
     BadAzs_FocusName = nil
     BadAzs_Msg("|cffff0000Focus Cleared|r")
 end
@@ -222,4 +225,5 @@ SLASH_BAFOCUS1 = "/bafocus"; SlashCmdList["BAFOCUS"] = BadAzs_SetFocus
 SLASH_BACLEAR1 = "/baclear"; SlashCmdList["BACLEAR"] = BadAzs_ClearFocus
 SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
 SLASH_BAASSIST1 = "/baassist"; SlashCmdList["BAASSIST"] = BadAzs_AssistFocus
+
 
