@@ -252,33 +252,38 @@ SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
 -- =========================
 -- [4b] DETECTOR DE MOVIMENTO
 -- GetUnitSpeed nao existe no cliente 1.12 (so foi adicionada no WotLK).
--- A alternativa correta pra vanilla: interceptar as funcoes de movimento
--- (existem desde sempre) e contar quantas teclas de movimento estao
--- pressionadas agora. Nao pega click-to-move, mas cobre o caso normal (WASD).
+-- Sobrescrever MoveForwardStart/StrafeLeftStart etc. e BLOQUEADO pelo client
+-- (sao funcoes protegidas, so a UI da Blizzard pode mexer nelas). A unica
+-- forma segura: so LER a posicao do jogador periodicamente e comparar.
+-- Nao funciona dentro de masmorras/instancias (GetPlayerMapPosition retorna
+-- 0,0 la dentro) - nesse caso assume "parado" e nao bloqueia o Sustain.
 -- =========================
-local BadAzsMoveCount = 0
+local BadAzsMoveFrame = CreateFrame("Frame")
+local BadAzsLastX, BadAzsLastY = nil, nil
+local BadAzsIsMovingFlag = false
+local BadAzsLastMoveCheck = 0
 
-local function BadAzs_HookMove(fnName, delta)
-    local original = getglobal(fnName)
-    if type(original) ~= "function" then return end
-    _G[fnName] = function()
-        BadAzsMoveCount = BadAzsMoveCount + delta
-        if BadAzsMoveCount < 0 then BadAzsMoveCount = 0 end
-        original()
+BadAzsMoveFrame:SetScript("OnUpdate", function()
+    local now = GetTime()
+    if now - BadAzsLastMoveCheck < 0.2 then return end
+    BadAzsLastMoveCheck = now
+
+    local x, y = GetPlayerMapPosition("player")
+    if x and y and (x ~= 0 or y ~= 0) then
+        if BadAzsLastX == nil then
+            BadAzsIsMovingFlag = false
+        else
+            local dx, dy = x - BadAzsLastX, y - BadAzsLastY
+            BadAzsIsMovingFlag = (dx * dx + dy * dy) > 0.0000001
+        end
+        BadAzsLastX, BadAzsLastY = x, y
+    else
+        BadAzsIsMovingFlag = false
     end
-end
-
-BadAzs_HookMove("MoveForwardStart", 1)
-BadAzs_HookMove("MoveForwardStop", -1)
-BadAzs_HookMove("MoveBackwardStart", 1)
-BadAzs_HookMove("MoveBackwardStop", -1)
-BadAzs_HookMove("StrafeLeftStart", 1)
-BadAzs_HookMove("StrafeLeftStop", -1)
-BadAzs_HookMove("StrafeRightStart", 1)
-BadAzs_HookMove("StrafeRightStop", -1)
+end)
 
 function BadAzs_IsMoving()
-    return BadAzsMoveCount > 0
+    return BadAzsIsMovingFlag
 end
 
 -- =========================
