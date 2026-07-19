@@ -1,293 +1,105 @@
-# [B]adAzs CORE – GLOBAL COMBAT FOUNDATION (v1.6)
+# [B]adAzs CORE
 
-**Battle Analysis Driven Assistant Zmart System – Core Layer**  
-*Turtle WoW Edition – Global Attack API*
+**Battle Analysis Driven Assistant Zmart System ** <br> 
+*Vanilla / Classic WoW Edition – Global Attack API*
 <a href="https://www.paypal.com/donate/?hosted_button_id=VLAFP6ZT8ATGU">
   <img src="https://github.com/ThePeregris/MainAssets/blob/main/Donate_PayPal.png" alt="Tips Appreciated!" align="right" width="120" height="75">
 </a>
+<br><br><br>
+<hr>
 
-## 1. TECHNICAL MANIFESTO | BadAzs CORE
+# BadAzs Core
 
-**Version:** v1.6
+Módulo base do conjunto de addons **BadAzs**, feito para **Vanilla/Classic WoW (cliente 1.12 / Lua 5.0)**.
+Concentra só as funções **universais** — que qualquer classe usa — para que os addons de cada classe (`BadAzsWarrior`, `BadAzsPaladin`, `BadAzsPriest`, ...) fiquem enxutos e independentes entre si.
 
-**Target:** Turtle WoW (Client 1.12.x – LUA 5.0)
+> Este addon **precisa estar habilitado** para qualquer outro addon `BadAzs*` funcionar.
 
-**Architecture:** Global Utility Core + Combat State API
+## Instalação
 
-**Author:** **ThePeregris**
+Copie a pasta inteira para `Interface/AddOns/`, mantendo o nome:
 
-The **BadAzs CORE** is the **fundamental layer** of the BadAzs ecosystem. It does not execute rotations or class-specific decisions—instead, it provides **reliable infrastructure**, **global combat state**, and **universal utilities** that other modules (Warrior, Rogue, Paladin, etc.) can use securely.
+```
+AddOns/
+  BadAzsCore/
+    BadAzsCore.toc
+    BadAzsCore.lua
+```
 
-✔️ Lightweight
+## O que vive aqui (e por quê)
 
-✔️ Modular
+A regra do projeto: se a lógica é específica de uma classe (rotação, seleção de spell, checagem de buff/debuff de combate), ela mora dentro do addon daquela classe. Se é algo que **qualquer** addon poderia precisar, mora aqui.
 
-✔️ Zero mandatory dependencies
+### 1. Mouseover manual (`/bamo`)
 
-✔️ Compatible with any class
+`BadAzs_ManualMouseover(spellName, doAssist)` — lança uma spell em quem está sob o mouse **sem perder o seu alvo atual** (troca, casta, e volta pro target de antes). Usado internamente pelos smart-buffs do Paladin e do Priest, mas também dá pra chamar direto:
 
-✔️ Built-in protection against missing addons (e.g., ItemRack)
+```
+/bamo Power Word: Fortitude
+/bamo Polymorph assist      -- lança e assiste o alvo do mouseover
+```
 
----
+### 2. Sistema de Focus
 
-## 2. CORE SYSTEMS OVERVIEW
+| Comando | O que faz |
+|---|---|
+| `/bafocus` | Define o Focus (prioriza mouseover; senão usa o target atual) |
+| `/baclear` | Limpa o Focus |
+| `/baassist` | Assiste o alvo do Focus |
+| `/baffollow` | Segue o Focus |
 
-### ⚔️ Global Auto-Attack API
+Guardado só em memória (`BadAzs_FocusName`), reseta ao relogar — é intencional, evita seguir/assistir alguém que já saiu do grupo.
 
-The CORE exposes a single, secure function:
+### 3. Vision (`/bavis`)
+
+Ajusta câmera (`cameraDistanceMax`, `nameplateDistance`) pra uma visão mais confortável de combate. Roda automaticamente uma vez ao entrar no mundo.
+
+### 4. Sustain — poções, healthstone e bandagens (`/basustain`)
+
+`BadAzs_Sustain()` é chamado **automaticamente** no início de toda rotação dos addons de classe (Warrior, Paladin, Priest). Baseado no addon [BannionNurse](https://github.com/ThePeregris/BannionNurse), com poção de mana adicionada (o original não tinha):
+
+- **Em combate:** HP ≤ limiar → Healthstone, senão poção de heal. Mana ≤ limiar → poção de mana, senão Demonic Rune.
+- **Fora de combate:** HP ≤ limiar → aplica bandagem (verifica se já não tem o debuff de bandagem ativo antes).
+- **Segurando ALT:** cast manual de First Aid (fora de combate).
+- Undead: `Cannibalize` automático fora de combate se HP baixo (corrigido nessa versão — o BannionNurse original chamava isso *durante* combate, onde a spell nunca funciona).
+
+Limiares em `BadAzsCoreDB` (`HPThreshold`, `ManaThreshold`, `RestHPThreshold`) — ainda sem painel gráfico próprio, ajustáveis só editando a SavedVariable por enquanto.
+
+### 5. Roteador de painéis (`/badazs`)
+
+Dono único do slash `/badazs`. Cada addon de classe se registra aqui em vez de reivindicar o comando sozinho — evita que dois addons carregados brigem pelo mesmo slash e um "roube" o comando do outro silenciosamente:
 
 ```lua
-BadAzs_StartAttack()
-
+BadAzs_PanelRegistry["warrior"] = function() ... end
 ```
 
-It ensures:
+| Comando | Abre |
+|---|---|
+| `/badazs warrior` | Painel do Warrior |
+| `/badazs pally` | Painel do Paladin |
+| `/badazs priest holy` \| `disc` \| `shadow` | Painéis do Priest |
 
-* No `AttackTarget()` spamming (prevents accidental "toggle-off").
-* Full synchronization with the actual combat state.
-* Correct visual feedback (crossed swords).
-* Total compatibility with Turtle WoW’s core mechanics.
+### 6. Funções de combate reutilizáveis
 
-📌 State is maintained by:
-`BadAzs_IsAttacking (true / false)`
+Ainda expostas globalmente pra qualquer addon usar, embora Warrior/Paladin/Priest já tenham suas próprias cópias internas (self-sufficient) por preferirem não depender do Core pra isso:
 
-This value updates automatically via events: `PLAYER_ENTER_COMBAT` & `PLAYER_LEAVE_COMBAT`.
+`BadAzs_Cast`, `BadAzs_GetTargetHP`, `BadAzs_GetMana`, `BadAzs_FindSpellId`, `BadAzs_Ready`, `BadAzs_HasBuff`, `BadAzs_TargetHasDebuff`, `BadAzs_UseItem`.
 
----
+## SavedVariables
 
-## 3. FOCUS SYSTEM (Target Intelligence)
+- `BadAzsCoreDB.SustainEnabled` — booleano, liga/desliga o Sustain
+- `BadAzsCoreDB.HPThreshold` — % de HP pra usar heal/stone em combate (padrão 75)
+- `BadAzsCoreDB.ManaThreshold` — % de mana pra usar poção de mana (padrão 20)
+- `BadAzsCoreDB.RestHPThreshold` — % de HP pra bandagem fora de combate (padrão 90)
 
-The CORE implements a **lightweight Focus system**, independent of the modern WoW focus frame.
+## Bugs corrigidos nesta versão
 
-### 🎯 Setting Focus
+- `## SavedVariables` estava **ausente** do `.toc` — `BadAzsCoreDB` nunca era salvo entre sessões.
+- `SLASH_BACLEAR1` apontava pra `BadAzs_ClearFocus`, que nunca tinha sido definida — `/baclear` não fazia nada.
+- Slash principal corrigido de `/badasz` (typo) para `/badazs` (batendo com o nome `BadAzs`).
 
-Priority-based logic:
+## Changelog
 
-1. **Current Target** (Standard 1.12 stable method)
-2. No target → Focus cleared
-
-```text
-/badfocus
-
-```
-
-📌 The Focus stores **only the unit name**, ensuring:
-
-* Low memory footprint.
-* Vanilla compatibility.
-* Easy implementation for other scripts.
-
-### ❌ Clearing Focus
-
-```text
-/badclear
-
-```
-
-Removes any active focus and notifies the chat.
-
-### 🤝 Assist & Follow
-
-New specialized commands for focus-based utility:
-
-* **/focusassist**: Targets your focus's current target.
-* **/focusfollow**: Commences following your focus unit.
-
----
-
-## 4. VISION MODULE (Camera & Nameplates)
-
-The **Vision Module** adjusts critical CVars for a modern combat experience in Vanilla:
-
-```text
-/badvis
-
-```
-
-### Applied Settings:
-
-* `cameraDistanceMax = 50`
-* `cameraDistanceMaxFactor = 2`
-* `nameplateDistance = 41`
-* Executes `SetView(4)` twice for guaranteed application.
-
-✔️ Uses `pcall()` to prevent errors.
-
-✔️ Safe against locked CVars.
-
-✔️ Automatically executed upon entering the world.
-
----
-
-## 5. UNIVERSAL RACIAL ENGINE
-
-The CORE automatically detects the player's race and casts the correct racial ability:
-
-| Race | Ability |
-| --- | --- |
-| Human | Perception |
-| Orc | Blood Fury |
-| Troll | Berserking |
-| Undead | Will of the Forsaken |
-| Dwarf | Stoneform |
-| Gnome | Escape Artist |
-| Night Elf | Shadowmeld |
-| Tauren | War Stomp |
-| Goblin | Rocket Barrage |
-| High Elf | Mana Tap |
-
-```lua
-BadAzs_UseRacial()
-
-```
-
----
-
-## 6. ITEMRACK WRAPPER (Optional)
-
-A universal wrapper for **ItemRack**, compatible with both known APIs:
-
-```lua
-BadAzs_EquipSet("SET_NAME")
-
-```
-
-📌 If ItemRack is not installed, the function **fails silently**, allowing the rest of your macro/script to continue without errors.
-
----
-
-## 7. SLASH COMMANDS
-
-| Command | Function |
-| --- | --- |
-| `/badfocus` | Sets Focus to current target |
-| `/badclear` | Clears active Focus |
-| `/focusassist` | Assists the Focus unit |
-| `/focusfollow` | Follows the Focus unit |
-| `/badvis` | Applies Vision Module settings |
-
----
-
-## 8. AUTO-INIT & DEBUG
-
-### Automatic Initialization
-
-Upon entering the world:
-
-* Vision Module is automatically applied.
-* CORE is loaded silently.
-
-### Debug Mode
-
-`BadAzs_Debug = true`
-
-When active, state messages are displayed in the chat—useful for development and module integration.
-
----
-
-## BADAZS CORE PHILOSOPHY
-
-> **"No decisions. No rotation. Just a solid foundation."**
-
-The **BadAzs CORE** exists to ensure that **other scripts never need to reinvent the wheel.**
-
----
-
-**BadAzs CORE v1.6** *A stable foundation is invisible—until it’s gone.*
-
----
-# PR-BR
----
-
-O **BadAzs CORE** é a **camada fundamental** do ecossistema BadAzs. Ele fornece a infraestrutura confiável e o estado global de combate que módulos específicos (como o **Lunaty**) utilizam para operar com máxima performance e zero erros de script.
-
-✔️ Leve & Modular
-
-✔️ Zero dependências obrigatórias
-
-✔️ Compatível com todas as classes
-
-✔️ Proteção contra erros de ItemRack/Addons ausentes
-
----
-
-## 2. CORE SYSTEMS OVERVIEW
-
-### ⚔️ Global Auto-Attack API
-
-O CORE expõe uma função inteligente que evita o "toggle off" (desligar o ataque por erro de clique):
-
-```lua
-BadAzs_StartAttack()
-
-```
-
-* Sincroniza o estado real de combate via eventos (`PLAYER_ENTER_COMBAT`).
-* Mantém o valor global: `BadAzs_IsAttacking (true / false)`.
-
----
-
-## 3. FOCUS SYSTEM (Target Intelligence)
-
-O sistema de Focus v1.6 foi otimizado para ser estável tanto em UnitFrames quanto em alvos diretos.
-
-| Comando | Função |
-| --- | --- |
-| **`/badfocus`** | Define o Focus no seu alvo atual. |
-| **`/badclear`** | Limpa o foco e notifica no chat. |
-| **`/focusassist`** | Assiste (pega o alvo) de quem está no seu Focus. |
-| **`/focusfollow`** | Segue automaticamente o personagem em Focus. |
-
----
-
-## 4. VISION MODULE (Camera & Nameplates)
-
-Ajusta as variáveis de ambiente (CVars) para uma experiência de combate moderna:
-
-```text
-/badvis
-
-```
-
-* **Camera Max:** 50 metros | **Nameplates:** 41 metros.
-* Executado automaticamente ao logar para garantir visibilidade máxima.
-
----
-
-## 5. UNIVERSAL RACIAL ENGINE
-
-Detecta e utiliza o racial da sua raça atual, incluindo as raças exclusivas do **Turtle WoW**.
-
-* **Suporte:** Human, Orc, Troll, Undead, Dwarf, Gnome, Night Elf, Tauren, **Goblin** e **High Elf**.
-* Chamada simples: `BadAzs_UseRacial()`.
-
----
-
-## 6. SLASH COMMANDS QUICK REFERENCE
-
-| Comando | Categoria | Descrição |
-| --- | --- | --- |
-| `/badfocus` | Focus | Define Focus no Alvo. |
-| `/badclear` | Focus | Limpa o Focus ativo. |
-| `/focusassist` | Utility | Assiste o alvo do Focus. |
-| `/focusfollow` | Utility | Segue o Focus. |
-| `/badvis` | Vision | Reseta Câmera e Nameplates. |
-
----
-
-## 7. INTEGRAÇÃO & DESENVOLVIMENTO
-
-O Core é projetado para ser "silencioso". Ele não polui o seu chat a menos que o modo de Debug esteja ativo:
-
-```lua
-BadAzs_Debug = true
-
-```
-
----
-
-> **"Uma base sólida é invisível — até faltar."**
-> O BadAzs CORE garante que você foque no combate, enquanto ele cuida da mecânica do jogo.
-
----
-**BadAzs CORE v1.6**
+- **v2.5** — Módulo Sustain (poções/stones/bandagens), roteador de painéis `/badazs`, correção do `SavedVariables` e do `BadAzs_ClearFocus`.
+- **v2.4** — (interno, absorvido pela v2.5)
+- **v2.3** — Core genérico: mouseover manual, focus, vision.
