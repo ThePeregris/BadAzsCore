@@ -1,7 +1,7 @@
 -- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
 -- Author:  ThePeregris
 -- Version: 2.5 (Generic Core + Sustain + Panel Router)
--- Target:  Turtle WoW (1.12 / LUA 5.0)
+-- Target:  Vanilla/Classic WoW (1.12 / LUA 5.0)
 
 BadAzs_Debug = true
 BadAzs_FocusName = nil
@@ -41,6 +41,8 @@ BadAzs_CoreFrame:SetScript("OnEvent", function()
         if not BadAzsCoreDB.HPThreshold then BadAzsCoreDB.HPThreshold = 75 end
         if not BadAzsCoreDB.ManaThreshold then BadAzsCoreDB.ManaThreshold = 20 end
         if not BadAzsCoreDB.RestHPThreshold then BadAzsCoreDB.RestHPThreshold = 90 end
+        if not BadAzsCoreDB.EmergencyHPThreshold then BadAzsCoreDB.EmergencyHPThreshold = 30 end
+        if not BadAzsCoreDB.TargetLowHPSkip then BadAzsCoreDB.TargetLowHPSkip = 20 end
         
         local block = {
             "fail", "not ready", "enough rage", "enough mana", "Another action", "range", 
@@ -299,28 +301,78 @@ local function BadAzs_TryItemList(list)
     return nil
 end
 
+-- Escolhe o item pela gravidade do deficit (0-100), nao so o mais forte disponivel.
+-- "list" precisa estar ordenada do mais forte (indice 1) pro mais fraco (indice N).
+-- Deficit alto -> mira perto do topo da lista (item forte). Deficit baixo -> mira perto do fim (item fraco).
+-- Se o item do tier ideal nao estiver na bag, expande pros vizinhos (primeiro mais forte, depois mais fraco).
+local function BadAzs_TryBySeverity(list, deficitPct)
+    local n = table.getn(list)
+    if n == 0 then return nil end
+
+    local normalized = deficitPct / 100
+    if normalized > 1 then normalized = 1 end
+    if normalized < 0 then normalized = 0 end
+
+    local tierIndex = n - math.floor(normalized * (n - 1))
+    if tierIndex < 1 then tierIndex = 1 end
+    if tierIndex > n then tierIndex = n end
+
+    local order = { tierIndex }
+    local up, down = tierIndex - 1, tierIndex + 1
+    while up >= 1 or down <= n do
+        if up >= 1 then table.insert(order, up); up = up - 1 end
+        if down <= n then table.insert(order, down); down = down + 1 end
+    end
+
+    local i
+    for i = 1, table.getn(order) do
+        local item = list[order[i]]
+        if BadAzs_UseItem(item) then return item end
+    end
+    return nil
+end
+
 function BadAzs_Sustain()
     if not BadAzsCoreDB.SustainEnabled then return end
 
     local hp, hmax = UnitHealth("player"), UnitHealthMax("player")
     if not hmax or hmax == 0 then return end
     local hpPct = (hp / hmax) * 100
+    local hpDeficit = 100 - hpPct
     local hasMana = UnitManaMax("player") > 0
     local manaPct = hasMana and BadAzs_GetMana() or 0
+    local manaDeficit = 100 - manaPct
     local combat = UnitAffectingCombat("player")
 
     UIErrorsFrame:Clear()
 
     if combat then
-        -- Vida primeiro: stone (sem cooldown compartilhado com pocoes) depois pocao
-        if hpPct <= BadAzsCoreDB.HPThreshold then
-            if BadAzs_TryItemList(BadAzs_SustainItems.Stones) then return end
-            if BadAzs_TryItemList(BadAzs_SustainItems.HealPotions) then return end
+        -- Se o alvo ja esta quase morto, o combate acaba logo - nao vale gastar
+        -- poucao a toa, a menos que voce mesmo esteja num aperto de verdade.
+        local targetDying = false
+        if UnitExists("target") and not UnitIsDead("target") then
+            local thp, thmax = UnitHealth("target"), UnitHealthMax("target")
+            if thmax and thmax > 0 then
+                local targetPct = (thp / thmax) * 100
+                if targetPct <= BadAzsCoreDB.TargetLowHPSkip then
+                    targetDying = true
+                end
+            end
         end
 
-        -- Mana: pocao, depois Demonic Rune
-        if hasMana and manaPct <= BadAzsCoreDB.ManaThreshold then
-            if BadAzs_TryItemList(BadAzs_SustainItems.ManaPotions) then return end
+        local emergency = hpPct <= BadAzsCoreDB.EmergencyHPThreshold
+        local shouldSustain = emergency or not targetDying
+
+        -- Vida primeiro: stone (sem cooldown compartilhado com pocoes) depois pocao,
+        -- ambos escolhendo o tier certo pra gravidade do deficit
+        if hpPct <= BadAzsCoreDB.HPThreshold and shouldSustain then
+            if BadAzs_TryBySeverity(BadAzs_SustainItems.Stones, hpDeficit) then return end
+            if BadAzs_TryBySeverity(BadAzs_SustainItems.HealPotions, hpDeficit) then return end
+        end
+
+        -- Mana: pocao (por gravidade), depois Demonic Rune (item unico, sem tier)
+        if hasMana and manaPct <= BadAzsCoreDB.ManaThreshold and shouldSustain then
+            if BadAzs_TryBySeverity(BadAzs_SustainItems.ManaPotions, manaDeficit) then return end
             if BadAzs_TryItemList(BadAzs_SustainItems.ManaStones) then return end
         end
     else
@@ -343,7 +395,7 @@ function BadAzs_Sustain()
                 end
             end
 
-            local used = BadAzs_TryItemList(BadAzs_SustainItems.Bandages)
+            local used = BadAzs_TryBySeverity(BadAzs_SustainItems.Bandages, hpDeficit)
             if used then
                 BadAzs_Msg("|cff00ff00Aplicando " .. used .. "...|r")
                 return
