@@ -250,6 +250,38 @@ SLASH_BAFFOLLOW1 = "/baffollow"; SlashCmdList["BAFFOLLOW"] = BadAzs_FollowFocus
 SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
 
 -- =========================
+-- [4b] DETECTOR DE MOVIMENTO
+-- GetUnitSpeed nao existe no cliente 1.12 (so foi adicionada no WotLK).
+-- A alternativa correta pra vanilla: interceptar as funcoes de movimento
+-- (existem desde sempre) e contar quantas teclas de movimento estao
+-- pressionadas agora. Nao pega click-to-move, mas cobre o caso normal (WASD).
+-- =========================
+local BadAzsMoveCount = 0
+
+local function BadAzs_HookMove(fnName, delta)
+    local original = getglobal(fnName)
+    if type(original) ~= "function" then return end
+    _G[fnName] = function()
+        BadAzsMoveCount = BadAzsMoveCount + delta
+        if BadAzsMoveCount < 0 then BadAzsMoveCount = 0 end
+        original()
+    end
+end
+
+BadAzs_HookMove("MoveForwardStart", 1)
+BadAzs_HookMove("MoveForwardStop", -1)
+BadAzs_HookMove("MoveBackwardStart", 1)
+BadAzs_HookMove("MoveBackwardStop", -1)
+BadAzs_HookMove("StrafeLeftStart", 1)
+BadAzs_HookMove("StrafeLeftStop", -1)
+BadAzs_HookMove("StrafeRightStart", 1)
+BadAzs_HookMove("StrafeRightStop", -1)
+
+function BadAzs_IsMoving()
+    return BadAzsMoveCount > 0
+end
+
+-- =========================
 -- [5] SUSTAIN (Pocoes / Stones / Bandagens) - baseado no BannionNurse
 -- Universal: qualquer classe se beneficia disso, entao mora no Core.
 -- =========================
@@ -385,7 +417,7 @@ function BadAzs_Sustain()
             end
         end
 
-        if hpPct <= BadAzsCoreDB.RestHPThreshold and GetUnitSpeed("player") == 0 then
+        if hpPct <= BadAzsCoreDB.RestHPThreshold and not BadAzs_IsMoving() then
             local i
             for i = 1, 16 do
                 local debuff = UnitDebuff("player", i)
@@ -410,7 +442,7 @@ do
     function BadAzs_Sustain()
         if IsAltKeyDown() then
             if UnitAffectingCombat("player") then return end
-            if GetUnitSpeed("player") ~= 0 then
+            if BadAzs_IsMoving() then
                 BadAzs_Msg("|cffff0000Pare de andar pra usar First Aid.|r")
                 return
             end
@@ -431,6 +463,58 @@ end
 
 SLASH_BASUSTAIN1 = "/basustain"
 SlashCmdList["BASUSTAIN"] = BadAzs_Sustain
+
+-- =========================
+-- [6] COMANDOS MANUAIS DE POCAO
+-- Sem argumento: usa uma pocao AGORA (por gravidade), ignorando o threshold
+-- automatico - voce decidiu, o addon so escolhe qual tier faz mais sentido.
+-- Com numero: redefine o threshold que o automatico usa (ex: /bapotion 40).
+-- =========================
+local function BadAzs_ManualHeal()
+    local hp, hmax = UnitHealth("player"), UnitHealthMax("player")
+    if not hmax or hmax == 0 then return end
+    local hpDeficit = 100 - ((hp / hmax) * 100)
+
+    UIErrorsFrame:Clear()
+    if BadAzs_TryBySeverity(BadAzs_SustainItems.Stones, hpDeficit) then return end
+    if BadAzs_TryBySeverity(BadAzs_SustainItems.HealPotions, hpDeficit) then return end
+    BadAzs_Msg("|cffff0000Nenhuma poucao/stone de heal disponivel na bag.|r")
+end
+
+local function BadAzs_ManualMana()
+    if UnitManaMax("player") == 0 then
+        BadAzs_Msg("|cffff0000Sua classe nao usa mana.|r")
+        return
+    end
+    local manaDeficit = 100 - BadAzs_GetMana()
+
+    UIErrorsFrame:Clear()
+    if BadAzs_TryBySeverity(BadAzs_SustainItems.ManaPotions, manaDeficit) then return end
+    if BadAzs_TryItemList(BadAzs_SustainItems.ManaStones) then return end
+    BadAzs_Msg("|cffff0000Nenhuma pocao de mana/Demonic Rune disponivel na bag.|r")
+end
+
+SLASH_BAPOTION1 = "/bapotion"
+SlashCmdList["BAPOTION"] = function(msg)
+    local num = tonumber(msg)
+    if num then
+        BadAzsCoreDB.HPThreshold = num
+        BadAzs_Msg("|cff00ff00Threshold de HP pra pocao automatica: " .. num .. "%|r")
+    else
+        BadAzs_ManualHeal()
+    end
+end
+
+SLASH_BAMANA1 = "/bamana"
+SlashCmdList["BAMANA"] = function(msg)
+    local num = tonumber(msg)
+    if num then
+        BadAzsCoreDB.ManaThreshold = num
+        BadAzs_Msg("|cff00ff00Threshold de mana pra pocao automatica: " .. num .. "%|r")
+    else
+        BadAzs_ManualMana()
+    end
+end
 
 -- =========================
 -- [6] ROTEADOR DE PAINEIS (/badazs <classe>)
