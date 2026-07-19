@@ -385,7 +385,7 @@ function BadAzs_Sustain()
             end
         end
 
-        if hpPct <= BadAzsCoreDB.RestHPThreshold then
+        if hpPct <= BadAzsCoreDB.RestHPThreshold and GetUnitSpeed("player") == 0 then
             local i
             for i = 1, 16 do
                 local debuff = UnitDebuff("player", i)
@@ -410,6 +410,10 @@ do
     function BadAzs_Sustain()
         if IsAltKeyDown() then
             if UnitAffectingCombat("player") then return end
+            if GetUnitSpeed("player") ~= 0 then
+                BadAzs_Msg("|cffff0000Pare de andar pra usar First Aid.|r")
+                return
+            end
             local i
             for i = 1, 16 do
                 local debuff = UnitDebuff("player", i)
