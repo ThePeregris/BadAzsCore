@@ -588,12 +588,12 @@ local BadAzsCore_L = {
         restLabel     = "HP% - use bandage (out of combat)",
         emergencyLabel = "HP% - always heal (real emergency)",
         targetSkipLabel = "Target HP% - skip potion if dying",
-        explainEnable   = "Turns the whole Sustain system on or off - potions, healthstones, bandages and Cannibalize. Doesn't affect the manual /bapotion and /bamana commands.",
-        explainHP       = "In combat, once your HP drops to this % or below, Sustain starts trying a healthstone, then a healing potion - picking the tier that matches how much you're missing.",
-        explainMana     = "Same idea for mana: below this %, tries a mana potion, then a Demonic Rune. Only applies to classes that use mana.",
-        explainRest     = "Out of combat, once your HP drops to this % or below (and you're standing still), Sustain applies a bandage - unless you already have the bandage debuff active.",
-        explainEmergency = "Safety net: if your own HP drops to this % or below, Sustain heals no matter what - even if the enemy is almost dead. Above this, it may hold off to save potions.",
-        explainTargetSkip = "If your target's HP is at or below this % (about to die), Sustain skips using a potion this pass - the fight is ending soon, no need to spend one. Doesn't apply below the Emergency threshold.",
+        explainEnable   = "Turns Sustain on/off entirely. Doesn't affect /bapotion and /bamana.",
+        explainHP       = "Below this HP in combat: healthstone, then heal potion, tier by severity.",
+        explainMana     = "Below this Mana in combat: mana potion, then Demonic Rune.",
+        explainRest     = "Below this HP out of combat, while standing still: applies a bandage.",
+        explainEmergency = "Safety net: below this HP, always heals - even if the enemy is dying.",
+        explainTargetSkip = "Target HP at or below this: skip the potion, fight's ending soon.",
         cmdHeader = "Macros",
         cmdList = {
             "/bapotion - Use a heal item now (ignores threshold)",
@@ -612,12 +612,12 @@ local BadAzsCore_L = {
         restLabel     = "HP% - usar bandagem (fora de combate)",
         emergencyLabel = "HP% - curar sempre (emergencia real)",
         targetSkipLabel = "HP% do alvo - poupar pocao se quase morto",
-        explainEnable   = "Liga ou desliga o sistema Sustain inteiro - pocoes, healthstones, bandagens e Cannibalize. Nao afeta os comandos manuais /bapotion e /bamana.",
-        explainHP       = "Em combate, quando seu HP cai pra esse % ou menos, o Sustain tenta um healthstone, depois uma pocao de heal - escolhendo o tier certo pela gravidade do que falta.",
-        explainMana     = "Mesma ideia pra mana: abaixo desse %, tenta pocao de mana, depois Demonic Rune. So se aplica a classes que usam mana.",
-        explainRest     = "Fora de combate, quando seu HP cai pra esse % ou menos (e voce esta parado), o Sustain aplica bandagem - a nao ser que voce ja tenha o debuff de bandagem ativo.",
-        explainEmergency = "Rede de seguranca: se seu proprio HP cair pra esse % ou menos, o Sustain cura independente de tudo - mesmo com o inimigo quase morto. Acima disso, pode segurar pra poupar pocao.",
-        explainTargetSkip = "Se o HP do seu alvo estiver nesse % ou menos (quase morrendo), o Sustain poupa a pocao dessa vez - o combate ta acabando, nao precisa gastar. Nao vale abaixo do limiar de Emergencia.",
+        explainEnable   = "Liga/desliga o Sustain inteiro. Nao afeta /bapotion e /bamana.",
+        explainHP       = "Abaixo desse HP em combate: healthstone, depois pocao de heal, tier por gravidade.",
+        explainMana     = "Abaixo dessa mana em combate: pocao de mana, depois Demonic Rune.",
+        explainRest     = "Abaixo desse HP fora de combate, parado: aplica bandagem.",
+        explainEmergency = "Rede de seguranca: abaixo desse HP, cura sempre - mesmo com o inimigo quase morto.",
+        explainTargetSkip = "HP do alvo nesse % ou menos: poupa a pocao, o combate ta acabando.",
         cmdHeader = "Macros",
         cmdList = {
             "/bapotion - Usa um item de heal agora (ignora o threshold)",
@@ -688,7 +688,7 @@ end)
 
 -- Sliders individuais (cada um resolve o texto no refresh, conforme o idioma)
 local hpSlider = CreateFrame("Slider", "BadAzsCore_HPSlider", LeftPage, "OptionsSliderTemplate")
-hpSlider:SetPoint("TOP", 0, -46)
+hpSlider:SetPoint("TOP", 0, -52)
 hpSlider:SetWidth(240)
 hpSlider:SetMinMaxValues(0, 100)
 hpSlider:SetValueStep(5)
@@ -700,7 +700,7 @@ hpSlider:SetScript("OnValueChanged", function()
 end)
 
 local manaSlider = CreateFrame("Slider", "BadAzsCore_ManaSlider", LeftPage, "OptionsSliderTemplate")
-manaSlider:SetPoint("TOP", 0, -92)
+manaSlider:SetPoint("TOP", 0, -108)
 manaSlider:SetWidth(240)
 manaSlider:SetMinMaxValues(0, 100)
 manaSlider:SetValueStep(5)
@@ -712,7 +712,7 @@ manaSlider:SetScript("OnValueChanged", function()
 end)
 
 local restSlider = CreateFrame("Slider", "BadAzsCore_RestSlider", LeftPage, "OptionsSliderTemplate")
-restSlider:SetPoint("TOP", 0, -138)
+restSlider:SetPoint("TOP", 0, -164)
 restSlider:SetWidth(240)
 restSlider:SetMinMaxValues(0, 100)
 restSlider:SetValueStep(5)
@@ -724,7 +724,7 @@ restSlider:SetScript("OnValueChanged", function()
 end)
 
 local emergencySlider = CreateFrame("Slider", "BadAzsCore_EmergencySlider", LeftPage, "OptionsSliderTemplate")
-emergencySlider:SetPoint("TOP", 0, -184)
+emergencySlider:SetPoint("TOP", 0, -220)
 emergencySlider:SetWidth(240)
 emergencySlider:SetMinMaxValues(0, 100)
 emergencySlider:SetValueStep(5)
@@ -736,7 +736,7 @@ emergencySlider:SetScript("OnValueChanged", function()
 end)
 
 local targetSkipSlider = CreateFrame("Slider", "BadAzsCore_TargetSkipSlider", LeftPage, "OptionsSliderTemplate")
-targetSkipSlider:SetPoint("TOP", 0, -230)
+targetSkipSlider:SetPoint("TOP", 0, -276)
 targetSkipSlider:SetWidth(240)
 targetSkipSlider:SetMinMaxValues(0, 100)
 targetSkipSlider:SetValueStep(5)
@@ -753,23 +753,23 @@ explainEnable:SetPoint("TOP", 0, -14)
 explainEnable:SetWidth(260); explainEnable:SetJustifyH("LEFT"); explainEnable:SetSpacing(2)
 
 local explainHP = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-explainHP:SetPoint("TOP", 0, -46)
+explainHP:SetPoint("TOP", 0, -52)
 explainHP:SetWidth(260); explainHP:SetJustifyH("LEFT"); explainHP:SetSpacing(2)
 
 local explainMana = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-explainMana:SetPoint("TOP", 0, -92)
+explainMana:SetPoint("TOP", 0, -108)
 explainMana:SetWidth(260); explainMana:SetJustifyH("LEFT"); explainMana:SetSpacing(2)
 
 local explainRest = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-explainRest:SetPoint("TOP", 0, -138)
+explainRest:SetPoint("TOP", 0, -164)
 explainRest:SetWidth(260); explainRest:SetJustifyH("LEFT"); explainRest:SetSpacing(2)
 
 local explainEmergency = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-explainEmergency:SetPoint("TOP", 0, -184)
+explainEmergency:SetPoint("TOP", 0, -220)
 explainEmergency:SetWidth(260); explainEmergency:SetJustifyH("LEFT"); explainEmergency:SetSpacing(2)
 
 local explainTargetSkip = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-explainTargetSkip:SetPoint("TOP", 0, -230)
+explainTargetSkip:SetPoint("TOP", 0, -276)
 explainTargetSkip:SetWidth(260); explainTargetSkip:SetJustifyH("LEFT"); explainTargetSkip:SetSpacing(2)
 
 -- ==================== RODAPE: LEMBRETE DE COMANDOS ====================
