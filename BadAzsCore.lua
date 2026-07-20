@@ -43,6 +43,7 @@ BadAzs_CoreFrame:SetScript("OnEvent", function()
         if not BadAzsCoreDB.RestHPThreshold then BadAzsCoreDB.RestHPThreshold = 90 end
         if not BadAzsCoreDB.EmergencyHPThreshold then BadAzsCoreDB.EmergencyHPThreshold = 30 end
         if not BadAzsCoreDB.TargetLowHPSkip then BadAzsCoreDB.TargetLowHPSkip = 20 end
+        if not BadAzsCoreDB.Locale then BadAzsCoreDB.Locale = "EN" end
         
         local block = {
             "fail", "not ready", "enough rage", "enough mana", "Another action", "range", 
@@ -248,6 +249,40 @@ SLASH_BACLEAR1 = "/baclear"; SlashCmdList["BACLEAR"] = BadAzs_ClearFocus
 SLASH_BAASSIST1 = "/baassist"; SlashCmdList["BAASSIST"] = BadAzs_AssistFocus
 SLASH_BAFFOLLOW1 = "/baffollow"; SlashCmdList["BAFFOLLOW"] = BadAzs_FollowFocus
 SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
+
+-- =========================
+-- [4a] AUTO-ATTACK (unica fonte de verdade)
+-- AttackTarget() E um toggle de verdade: chamar de novo enquanto ja ataca
+-- desliga o auto-attack em vez de mante-lo. Isso e mecanica pura do jogo,
+-- identica pra qualquer classe corpo-a-corpo - nao faz sentido cada addon
+-- de classe duplicar (e ter que corrigir bug igual em N lugares).
+-- =========================
+BadAzs_IsAttacking = false
+
+local BadAzs_AttackFrame = CreateFrame("Frame")
+BadAzs_AttackFrame:RegisterEvent("PLAYER_ENTER_COMBAT")
+BadAzs_AttackFrame:RegisterEvent("PLAYER_LEAVE_COMBAT")
+BadAzs_AttackFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
+BadAzs_AttackFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
+BadAzs_AttackFrame:SetScript("OnEvent", function()
+    if event == "PLAYER_ENTER_COMBAT" then
+        BadAzs_IsAttacking = true
+    elseif event == "PLAYER_LEAVE_COMBAT" then
+        BadAzs_IsAttacking = false
+    elseif event == "CHAT_MSG_COMBAT_SELF_HITS" or event == "CHAT_MSG_COMBAT_SELF_MISSES" then
+        -- um swing seu de verdade so acontece se o auto-attack estiver
+        -- realmente ligado - confirma o estado mesmo se PLAYER_ENTER_COMBAT
+        -- tiver disparado por outro motivo (ex: apanhando antes de atacar)
+        BadAzs_IsAttacking = true
+    end
+end)
+
+function BadAzs_StartAttack()
+    if not BadAzs_IsAttacking and UnitExists("target") and not UnitIsDead("target") then
+        AttackTarget()
+        BadAzs_IsAttacking = true
+    end
+end
 
 -- =========================
 -- [4b] DETECTOR DE MOVIMENTO
@@ -536,6 +571,268 @@ SlashCmdList["BADAZS"] = function(msg)
     if msg and BadAzs_PanelRegistry[msg] then
         BadAzs_PanelRegistry[msg]()
     else
-        BadAzs_Msg("Uso: /badazs [warrior | pally | priest]")
+        BadAzs_Msg("Uso: /badazs [warrior | pally | priest | core]")
     end
+end
+
+-- =========================
+-- [7] PAINEL DE CONFIGURACAO (/badazs core)
+-- Formato de livro: pagina esquerda = controles, pagina direita = explicacoes
+-- =========================
+local BadAzsCore_L = {
+    EN = {
+        title         = "BadAzs Core",
+        enableLabel   = "Enable Sustain",
+        hpLabel       = "HP% - use heal (in combat)",
+        manaLabel     = "Mana% - use mana potion (in combat)",
+        restLabel     = "HP% - use bandage (out of combat)",
+        emergencyLabel = "HP% - always heal (real emergency)",
+        targetSkipLabel = "Target HP% - skip potion if dying",
+        explainEnable   = "Turns the whole Sustain system on or off - potions, healthstones, bandages and Cannibalize. Doesn't affect the manual /bapotion and /bamana commands.",
+        explainHP       = "In combat, once your HP drops to this % or below, Sustain starts trying a healthstone, then a healing potion - picking the tier that matches how much you're missing.",
+        explainMana     = "Same idea for mana: below this %, tries a mana potion, then a Demonic Rune. Only applies to classes that use mana.",
+        explainRest     = "Out of combat, once your HP drops to this % or below (and you're standing still), Sustain applies a bandage - unless you already have the bandage debuff active.",
+        explainEmergency = "Safety net: if your own HP drops to this % or below, Sustain heals no matter what - even if the enemy is almost dead. Above this, it may hold off to save potions.",
+        explainTargetSkip = "If your target's HP is at or below this % (about to die), Sustain skips using a potion this pass - the fight is ending soon, no need to spend one. Doesn't apply below the Emergency threshold.",
+        cmdHeader = "Macros",
+        cmdList = {
+            "/bapotion - Use a heal item now (ignores threshold)",
+            "/bapotion N - Set HP threshold to N%",
+            "/bamana - Use a mana potion now (ignores threshold)",
+            "/bamana N - Set mana threshold to N%",
+            "Hold ALT + /basustain - Cast First Aid manually",
+            "/badazs <class> - Open a class panel"
+        }
+    },
+    PT = {
+        title         = "BadAzs Core",
+        enableLabel   = "Ativar Sustain",
+        hpLabel       = "HP% - usar heal (em combate)",
+        manaLabel     = "Mana% - usar pocao de mana (em combate)",
+        restLabel     = "HP% - usar bandagem (fora de combate)",
+        emergencyLabel = "HP% - curar sempre (emergencia real)",
+        targetSkipLabel = "HP% do alvo - poupar pocao se quase morto",
+        explainEnable   = "Liga ou desliga o sistema Sustain inteiro - pocoes, healthstones, bandagens e Cannibalize. Nao afeta os comandos manuais /bapotion e /bamana.",
+        explainHP       = "Em combate, quando seu HP cai pra esse % ou menos, o Sustain tenta um healthstone, depois uma pocao de heal - escolhendo o tier certo pela gravidade do que falta.",
+        explainMana     = "Mesma ideia pra mana: abaixo desse %, tenta pocao de mana, depois Demonic Rune. So se aplica a classes que usam mana.",
+        explainRest     = "Fora de combate, quando seu HP cai pra esse % ou menos (e voce esta parado), o Sustain aplica bandagem - a nao ser que voce ja tenha o debuff de bandagem ativo.",
+        explainEmergency = "Rede de seguranca: se seu proprio HP cair pra esse % ou menos, o Sustain cura independente de tudo - mesmo com o inimigo quase morto. Acima disso, pode segurar pra poupar pocao.",
+        explainTargetSkip = "Se o HP do seu alvo estiver nesse % ou menos (quase morrendo), o Sustain poupa a pocao dessa vez - o combate ta acabando, nao precisa gastar. Nao vale abaixo do limiar de Emergencia.",
+        cmdHeader = "Macros",
+        cmdList = {
+            "/bapotion - Usa um item de heal agora (ignora o threshold)",
+            "/bapotion N - Define o threshold de HP pra N%",
+            "/bamana - Usa pocao de mana agora (ignora o threshold)",
+            "/bamana N - Define o threshold de mana pra N%",
+            "Segure ALT + /basustain - Cast manual de First Aid",
+            "/badazs <classe> - Abre o painel de uma classe"
+        }
+    }
+}
+
+local Panel = CreateFrame("Frame", "BadAzsCorePanel", UIParent)
+Panel:SetWidth(620)
+Panel:SetHeight(620)
+Panel:SetPoint("CENTER", 0, 0)
+Panel:SetMovable(true)
+Panel:EnableMouse(true)
+Panel:RegisterForDrag("LeftButton")
+Panel:SetScript("OnDragStart", function() this:StartMoving() end)
+Panel:SetScript("OnDragStop", function() this:StopMovingOrSizing() end)
+Panel:SetFrameStrata("DIALOG")
+Panel:Hide()
+
+local LeftPage = CreateFrame("Frame", nil, Panel)
+LeftPage:SetWidth(300)
+LeftPage:SetHeight(400)
+LeftPage:SetPoint("TOPLEFT", Panel, "TOPLEFT", 0, -60)
+LeftPage:SetBackdrop({
+    bgFile = "Interface/DialogFrame/UI-DialogBox-Background",
+    edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
+    tile = true, tileSize = 32, edgeSize = 32,
+    insets = { left = 11, right = 12, top = 12, bottom = 11 }
+})
+
+local RightPage = CreateFrame("Frame", nil, Panel)
+RightPage:SetWidth(300)
+RightPage:SetHeight(400)
+RightPage:SetPoint("TOPLEFT", Panel, "TOPLEFT", 320, -60)
+RightPage:SetBackdrop({
+    bgFile = "Interface/DialogFrame/UI-DialogBox-Background",
+    edgeFile = "Interface/DialogFrame/UI-DialogBox-Border",
+    tile = true, tileSize = 32, edgeSize = 32,
+    insets = { left = 11, right = 12, top = 12, bottom = 11 }
+})
+
+local title = Panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+title:SetPoint("TOP", 0, -16)
+title:SetText("|cff32CD32BadAzs Core|r")
+
+local closeBtn = CreateFrame("Button", "BadAzsCorePanelClose", Panel, "UIPanelCloseButton")
+closeBtn:SetPoint("TOPRIGHT", -4, -4)
+
+local langBtn = CreateFrame("Button", "BadAzsCore_LangBtn", Panel, "UIPanelButtonTemplate")
+langBtn:SetPoint("TOPLEFT", 8, -10)
+langBtn:SetWidth(44); langBtn:SetHeight(20)
+
+-- ==================== PAGINA ESQUERDA: CONTROLES ====================
+local enableCheck = CreateFrame("CheckButton", "BadAzsCore_EnableCheck", LeftPage, "UICheckButtonTemplate")
+enableCheck:SetPoint("TOPLEFT", 20, -16)
+getglobal(enableCheck:GetName().."Text"):SetText("")
+local enableLabel = LeftPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+enableLabel:SetPoint("LEFT", enableCheck, "RIGHT", 4, 0)
+enableLabel:SetJustifyH("LEFT")
+enableCheck:SetScript("OnClick", function()
+    BadAzsCoreDB.SustainEnabled = (this:GetChecked() == 1)
+end)
+
+-- Sliders individuais (cada um resolve o texto no refresh, conforme o idioma)
+local hpSlider = CreateFrame("Slider", "BadAzsCore_HPSlider", LeftPage, "OptionsSliderTemplate")
+hpSlider:SetPoint("TOP", 0, -46)
+hpSlider:SetWidth(240)
+hpSlider:SetMinMaxValues(0, 100)
+hpSlider:SetValueStep(5)
+getglobal(hpSlider:GetName().."Low"):SetText("0")
+getglobal(hpSlider:GetName().."High"):SetText("100")
+hpSlider:SetScript("OnValueChanged", function()
+    BadAzsCoreDB.HPThreshold = this:GetValue()
+    getglobal(this:GetName().."Text"):SetText(BadAzsCore_L[BadAzsCoreDB.Locale].hpLabel .. ": " .. this:GetValue())
+end)
+
+local manaSlider = CreateFrame("Slider", "BadAzsCore_ManaSlider", LeftPage, "OptionsSliderTemplate")
+manaSlider:SetPoint("TOP", 0, -92)
+manaSlider:SetWidth(240)
+manaSlider:SetMinMaxValues(0, 100)
+manaSlider:SetValueStep(5)
+getglobal(manaSlider:GetName().."Low"):SetText("0")
+getglobal(manaSlider:GetName().."High"):SetText("100")
+manaSlider:SetScript("OnValueChanged", function()
+    BadAzsCoreDB.ManaThreshold = this:GetValue()
+    getglobal(this:GetName().."Text"):SetText(BadAzsCore_L[BadAzsCoreDB.Locale].manaLabel .. ": " .. this:GetValue())
+end)
+
+local restSlider = CreateFrame("Slider", "BadAzsCore_RestSlider", LeftPage, "OptionsSliderTemplate")
+restSlider:SetPoint("TOP", 0, -138)
+restSlider:SetWidth(240)
+restSlider:SetMinMaxValues(0, 100)
+restSlider:SetValueStep(5)
+getglobal(restSlider:GetName().."Low"):SetText("0")
+getglobal(restSlider:GetName().."High"):SetText("100")
+restSlider:SetScript("OnValueChanged", function()
+    BadAzsCoreDB.RestHPThreshold = this:GetValue()
+    getglobal(this:GetName().."Text"):SetText(BadAzsCore_L[BadAzsCoreDB.Locale].restLabel .. ": " .. this:GetValue())
+end)
+
+local emergencySlider = CreateFrame("Slider", "BadAzsCore_EmergencySlider", LeftPage, "OptionsSliderTemplate")
+emergencySlider:SetPoint("TOP", 0, -184)
+emergencySlider:SetWidth(240)
+emergencySlider:SetMinMaxValues(0, 100)
+emergencySlider:SetValueStep(5)
+getglobal(emergencySlider:GetName().."Low"):SetText("0")
+getglobal(emergencySlider:GetName().."High"):SetText("100")
+emergencySlider:SetScript("OnValueChanged", function()
+    BadAzsCoreDB.EmergencyHPThreshold = this:GetValue()
+    getglobal(this:GetName().."Text"):SetText(BadAzsCore_L[BadAzsCoreDB.Locale].emergencyLabel .. ": " .. this:GetValue())
+end)
+
+local targetSkipSlider = CreateFrame("Slider", "BadAzsCore_TargetSkipSlider", LeftPage, "OptionsSliderTemplate")
+targetSkipSlider:SetPoint("TOP", 0, -230)
+targetSkipSlider:SetWidth(240)
+targetSkipSlider:SetMinMaxValues(0, 100)
+targetSkipSlider:SetValueStep(5)
+getglobal(targetSkipSlider:GetName().."Low"):SetText("0")
+getglobal(targetSkipSlider:GetName().."High"):SetText("100")
+targetSkipSlider:SetScript("OnValueChanged", function()
+    BadAzsCoreDB.TargetLowHPSkip = this:GetValue()
+    getglobal(this:GetName().."Text"):SetText(BadAzsCore_L[BadAzsCoreDB.Locale].targetSkipLabel .. ": " .. this:GetValue())
+end)
+
+-- ==================== PAGINA DIREITA: EXPLICACOES ====================
+local explainEnable = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+explainEnable:SetPoint("TOP", 0, -14)
+explainEnable:SetWidth(260); explainEnable:SetJustifyH("LEFT"); explainEnable:SetSpacing(2)
+
+local explainHP = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+explainHP:SetPoint("TOP", 0, -46)
+explainHP:SetWidth(260); explainHP:SetJustifyH("LEFT"); explainHP:SetSpacing(2)
+
+local explainMana = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+explainMana:SetPoint("TOP", 0, -92)
+explainMana:SetWidth(260); explainMana:SetJustifyH("LEFT"); explainMana:SetSpacing(2)
+
+local explainRest = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+explainRest:SetPoint("TOP", 0, -138)
+explainRest:SetWidth(260); explainRest:SetJustifyH("LEFT"); explainRest:SetSpacing(2)
+
+local explainEmergency = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+explainEmergency:SetPoint("TOP", 0, -184)
+explainEmergency:SetWidth(260); explainEmergency:SetJustifyH("LEFT"); explainEmergency:SetSpacing(2)
+
+local explainTargetSkip = RightPage:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+explainTargetSkip:SetPoint("TOP", 0, -230)
+explainTargetSkip:SetWidth(260); explainTargetSkip:SetJustifyH("LEFT"); explainTargetSkip:SetSpacing(2)
+
+-- ==================== RODAPE: LEMBRETE DE COMANDOS ====================
+local divider = Panel:CreateTexture(nil, "ARTWORK")
+divider:SetPoint("TOP", 0, -468)
+divider:SetWidth(590); divider:SetHeight(1)
+divider:SetTexture(0.5, 0.5, 0.5, 0.5)
+
+local cmdHeader = Panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+cmdHeader:SetPoint("TOP", 0, -480)
+
+local cmdText = Panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+cmdText:SetPoint("TOP", 0, -500)
+cmdText:SetWidth(560)
+cmdText:SetJustifyH("LEFT")
+cmdText:SetSpacing(3)
+
+function BadAzsCore_RefreshPanel()
+    local L = BadAzsCore_L[BadAzsCoreDB.Locale]
+
+    title:SetText("|cff32CD32" .. L.title .. "|r")
+    langBtn:SetText(BadAzsCoreDB.Locale)
+
+    if BadAzsCoreDB.SustainEnabled then enableCheck:SetChecked(1) else enableCheck:SetChecked(nil) end
+    enableLabel:SetText(L.enableLabel)
+
+    hpSlider:SetValue(BadAzsCoreDB.HPThreshold or 75)
+    manaSlider:SetValue(BadAzsCoreDB.ManaThreshold or 20)
+    restSlider:SetValue(BadAzsCoreDB.RestHPThreshold or 90)
+    emergencySlider:SetValue(BadAzsCoreDB.EmergencyHPThreshold or 30)
+    targetSkipSlider:SetValue(BadAzsCoreDB.TargetLowHPSkip or 20)
+
+    getglobal(hpSlider:GetName().."Text"):SetText(L.hpLabel .. ": " .. (BadAzsCoreDB.HPThreshold or 75))
+    getglobal(manaSlider:GetName().."Text"):SetText(L.manaLabel .. ": " .. (BadAzsCoreDB.ManaThreshold or 20))
+    getglobal(restSlider:GetName().."Text"):SetText(L.restLabel .. ": " .. (BadAzsCoreDB.RestHPThreshold or 90))
+    getglobal(emergencySlider:GetName().."Text"):SetText(L.emergencyLabel .. ": " .. (BadAzsCoreDB.EmergencyHPThreshold or 30))
+    getglobal(targetSkipSlider:GetName().."Text"):SetText(L.targetSkipLabel .. ": " .. (BadAzsCoreDB.TargetLowHPSkip or 20))
+
+    explainEnable:SetText(L.explainEnable)
+    explainHP:SetText(L.explainHP)
+    explainMana:SetText(L.explainMana)
+    explainRest:SetText(L.explainRest)
+    explainEmergency:SetText(L.explainEmergency)
+    explainTargetSkip:SetText(L.explainTargetSkip)
+
+    cmdHeader:SetText("|cffffd200" .. L.cmdHeader .. "|r")
+    local lines = ""
+    local i
+    for i = 1, table.getn(L.cmdList) do
+        if i > 1 then lines = lines .. "\n" end
+        lines = lines .. L.cmdList[i]
+    end
+    cmdText:SetText(lines)
+end
+
+langBtn:SetScript("OnClick", function()
+    if BadAzsCoreDB.Locale == "EN" then BadAzsCoreDB.Locale = "PT" else BadAzsCoreDB.Locale = "EN" end
+    BadAzsCore_RefreshPanel()
+end)
+
+Panel:SetScript("OnShow", function() BadAzsCore_RefreshPanel() end)
+
+BadAzs_PanelRegistry = BadAzs_PanelRegistry or {}
+BadAzs_PanelRegistry["core"] = function()
+    if Panel:IsShown() then Panel:Hide() else Panel:Show() end
 end
