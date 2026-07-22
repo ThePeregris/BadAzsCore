@@ -2,7 +2,7 @@
 ## Title: [|cff355E3BB|r]adAzs |cff32CD32Core|r
 ## Notes: Battle Analysis Driven Assistant Zmart System
 ## Author: ThePeregris
-## Version: 2.5
+## Version: 2.6
 ## SavedVariables: BadAzsCoreDB
 ## OptionalDeps: ItemRack
 ## DefaultState: enable

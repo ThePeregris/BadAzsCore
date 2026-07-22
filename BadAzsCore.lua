@@ -1,15 +1,10 @@
 -- [[ [|cff355E3BB|r]adAzs |cff32CD32CORE|r ]]
 -- Author:  ThePeregris
--- Version: 2.5 (Generic Core + Sustain + Panel Router)
+-- Version: 2.6 (Cleanup: removido auto-attack duplicado com bug, codigo morto)
 -- Target:  Vanilla/Classic WoW (1.12 / LUA 5.0)
 
 BadAzs_Debug = true
 BadAzs_FocusName = nil
-BadAzs_LastDodge = 0
-
--- Scanner Global (Usado pelos módulos de classe)
-CreateFrame("GameTooltip", "BadAzs_TooltipScanner", nil, "GameTooltipTemplate")
-BadAzs_TooltipScanner:SetOwner(WorldFrame, "ANCHOR_NONE")
 
 local function BadAzs_Msg(msg)
     if BadAzs_Debug then
@@ -22,18 +17,10 @@ end
 -- =========================
 local BadAzs_CoreFrame = CreateFrame("Frame")
 BadAzs_CoreFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-BadAzs_CoreFrame:RegisterEvent("PLAYER_LEAVE_COMBAT")
-BadAzs_CoreFrame:RegisterEvent("PLAYER_ENTER_COMBAT")
-BadAzs_CoreFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
-BadAzs_CoreFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
-BadAzs_CoreFrame:RegisterEvent("SPELLCAST_STOP")
-
-if not SP_ST_Data then SP_ST_Data = { main_start = 0 } end
-BadAzs_IsAttacking = false
 
 BadAzs_CoreFrame:SetScript("OnEvent", function()
     if event == "PLAYER_ENTERING_WORLD" then
-        BadAzs_Msg("v2.5 (Generic Core) Carregado.")
+        BadAzs_Msg("v2.6 (Generic Core) Carregado.")
         BadAzs_Vision()
 
         if not BadAzsCoreDB then BadAzsCoreDB = {} end
@@ -65,43 +52,10 @@ BadAzs_CoreFrame:SetScript("OnEvent", function()
             end
         end
     end
-
-    if event == "PLAYER_ENTER_COMBAT" then BadAzs_IsAttacking = true
-    elseif event == "PLAYER_LEAVE_COMBAT" then BadAzs_IsAttacking = false 
-    end
-
-    if event == "CHAT_MSG_COMBAT_SELF_HITS" then
-        SP_ST_Data.main_start = GetTime()
-    elseif event == "CHAT_MSG_COMBAT_SELF_MISSES" then
-        SP_ST_Data.main_start = GetTime()
-        if arg1 and string.find(arg1, "dodges") then
-            BadAzs_LastDodge = GetTime()
-        end
-    elseif event == "SPELLCAST_STOP" then
-        if arg1 and arg1 == "Slam" then SP_ST_Data.main_start = GetTime() end
-    end
 end)
 
 -- =========================
--- [2] CAST SYSTEM (SAFE)
--- =========================
-
--- FUNÇÃO PRINCIPAL: Apenas ataca o alvo atual.
--- Não verifica filas (Queues). Isso é responsabilidade do módulo da classe.
-function BadAzs_Cast(spellName)
-    if spellName == "Attack" then
-        if not BadAzs_IsAttacking and UnitExists("target") and not UnitIsDead("target") then
-            AttackTarget()
-            BadAzs_IsAttacking = true
-        end
-        return
-    end
-
-    CastSpellByName(spellName)
-end
-
--- =========================
--- [3] MANUAL MOUSEOVER (/bamo)
+-- [2] MANUAL MOUSEOVER (/bamo)
 -- =========================
 function BadAzs_ManualMouseover(spellName, doAssist)
     local switched = false
@@ -138,7 +92,7 @@ SlashCmdList["BAMO"] = function(msg)
 end
 
 -- =========================
--- [4] HELPERS
+-- [3] HELPERS
 -- =========================
 
 function BadAzs_SetFocus()
@@ -251,41 +205,50 @@ SLASH_BAFFOLLOW1 = "/baffollow"; SlashCmdList["BAFFOLLOW"] = BadAzs_FollowFocus
 SLASH_BAVIS1 = "/bavis"; SlashCmdList["BAVIS"] = BadAzs_Vision
 
 -- =========================
--- [4a] AUTO-ATTACK (unica fonte de verdade)
--- AttackTarget() E um toggle de verdade: chamar de novo enquanto ja ataca
--- desliga o auto-attack em vez de mante-lo. Isso e mecanica pura do jogo,
--- identica pra qualquer classe corpo-a-corpo - nao faz sentido cada addon
--- de classe duplicar (e ter que corrigir bug igual em N lugares).
+-- [3a] AUTO-ATTACK (unica fonte de verdade)
+-- AttackTarget() E um toggle de verdade (confirmado): chamar de novo enquanto
+-- ja ataca DESLIGA o auto-attack em vez de mante-lo. Rastrear isso por eventos
+-- de combate (PLAYER_ENTER_COMBAT etc.) e pouco confiavel - esse evento so diz
+-- que voce esta "em combate" (ex: apanhando), nao que seu auto-attack real
+-- esta ligado. A forma confiavel e perguntar pro proprio jogo: achar o slot
+-- do botao de Attack na actionbar (IsAttackAction) e checar se esta ativo
+-- (IsCurrentAction) antes de decidir se chama o toggle.
 -- =========================
-BadAzs_IsAttacking = false
+local BadAzs_AttackSlot = nil
 
-local BadAzs_AttackFrame = CreateFrame("Frame")
-BadAzs_AttackFrame:RegisterEvent("PLAYER_ENTER_COMBAT")
-BadAzs_AttackFrame:RegisterEvent("PLAYER_LEAVE_COMBAT")
-BadAzs_AttackFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_HITS")
-BadAzs_AttackFrame:RegisterEvent("CHAT_MSG_COMBAT_SELF_MISSES")
-BadAzs_AttackFrame:SetScript("OnEvent", function()
-    if event == "PLAYER_ENTER_COMBAT" then
-        BadAzs_IsAttacking = true
-    elseif event == "PLAYER_LEAVE_COMBAT" then
-        BadAzs_IsAttacking = false
-    elseif event == "CHAT_MSG_COMBAT_SELF_HITS" or event == "CHAT_MSG_COMBAT_SELF_MISSES" then
-        -- um swing seu de verdade so acontece se o auto-attack estiver
-        -- realmente ligado - confirma o estado mesmo se PLAYER_ENTER_COMBAT
-        -- tiver disparado por outro motivo (ex: apanhando antes de atacar)
-        BadAzs_IsAttacking = true
-    end
+local BadAzs_AttackSlotFrame = CreateFrame("Frame")
+BadAzs_AttackSlotFrame:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
+BadAzs_AttackSlotFrame:SetScript("OnEvent", function()
+    BadAzs_AttackSlot = nil
 end)
 
+local function BadAzs_FindAttackSlot()
+    local i
+    for i = 1, 120 do
+        if IsAttackAction(i) then return i end
+    end
+    return nil
+end
+
 function BadAzs_StartAttack()
-    if not BadAzs_IsAttacking and UnitExists("target") and not UnitIsDead("target") then
+    if not BadAzs_AttackSlot then
+        BadAzs_AttackSlot = BadAzs_FindAttackSlot()
+    end
+
+    -- Se achamos o slot e ele ja esta ativo, NAO chama AttackTarget() de novo
+    -- (isso desligaria o ataque). Se nao achamos o slot (Attack nao esta em
+    -- nenhuma actionbar), cai pro toggle direto mesmo, sem como confirmar.
+    if BadAzs_AttackSlot and IsCurrentAction(BadAzs_AttackSlot) then
+        return
+    end
+
+    if UnitExists("target") and not UnitIsDead("target") then
         AttackTarget()
-        BadAzs_IsAttacking = true
     end
 end
 
 -- =========================
--- [4b] DETECTOR DE MOVIMENTO
+-- [3b] DETECTOR DE MOVIMENTO
 -- GetUnitSpeed nao existe no cliente 1.12 (so foi adicionada no WotLK).
 -- Sobrescrever MoveForwardStart/StrafeLeftStart etc. e BLOQUEADO pelo client
 -- (sao funcoes protegidas, so a UI da Blizzard pode mexer nelas). A unica
@@ -322,7 +285,7 @@ function BadAzs_IsMoving()
 end
 
 -- =========================
--- [5] SUSTAIN (Pocoes / Stones / Bandagens) - baseado no BannionNurse
+-- [4] SUSTAIN (Pocoes / Stones / Bandagens) - baseado no BannionNurse
 -- Universal: qualquer classe se beneficia disso, entao mora no Core.
 -- =========================
 local BadAzs_SustainItems = {
@@ -505,7 +468,7 @@ SLASH_BASUSTAIN1 = "/basustain"
 SlashCmdList["BASUSTAIN"] = BadAzs_Sustain
 
 -- =========================
--- [6] COMANDOS MANUAIS DE POCAO
+-- [5] COMANDOS MANUAIS DE POCAO
 -- Sem argumento: usa uma pocao AGORA (por gravidade), ignorando o threshold
 -- automatico - voce decidiu, o addon so escolhe qual tier faz mais sentido.
 -- Com numero: redefine o threshold que o automatico usa (ex: /bapotion 40).
