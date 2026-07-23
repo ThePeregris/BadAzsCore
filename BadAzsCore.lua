@@ -578,7 +578,7 @@ local BadAzsCore_L = {
             "/badazs <class> - Open a class panel"
         }
     },
-    PT = {
+    BR = {
         title         = "BadAzs Core",
         enableLabel   = "Ativar Sustain",
         hpLabel       = "HP% - usar heal (em combate)",
@@ -800,7 +800,7 @@ function BadAzsCore_RefreshPanel()
 end
 
 langBtn:SetScript("OnClick", function()
-    if BadAzsCoreDB.Locale == "EN" then BadAzsCoreDB.Locale = "PT" else BadAzsCoreDB.Locale = "EN" end
+    if BadAzsCoreDB.Locale == "EN" then BadAzsCoreDB.Locale = "BR" else BadAzsCoreDB.Locale = "EN" end
     BadAzsCore_RefreshPanel()
 end)
 
