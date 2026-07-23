@@ -378,8 +378,37 @@ function BadAzs_Sustain()
     local manaPct = hasMana and BadAzs_GetMana() or 0
     local manaDeficit = 100 - manaPct
     local combat = UnitAffectingCombat("player")
+    local emergency = hpPct <= BadAzsCoreDB.EmergencyHPThreshold
 
     UIErrorsFrame:Clear()
+
+    -- Bandagem tem PRIORIDADE sobre pocao: e de graca (sem cooldown
+    -- compartilhado com pocao/stone, so gasto de pano), entao vale tentar
+    -- primeiro sempre que der (parado, sem debuff ativo) - poupa pocao pra
+    -- quando realmente precisar. Excecao: emergencia real (HP critico) pula
+    -- direto pra pocao, porque bandagem tem cast time e pode ser interrompida
+    -- por dano, e ali velocidade importa mais que economia.
+    if not emergency and hpPct <= BadAzsCoreDB.RestHPThreshold and not BadAzs_IsMoving() then
+        local hasDebuff = false
+        local i
+        for i = 1, 16 do
+            local debuff = UnitDebuff("player", i)
+            if debuff and string.find(debuff, "Bandage") then
+                hasDebuff = true
+                break
+            end
+        end
+
+        if not hasDebuff then
+            local used = BadAzs_TryBySeverity(BadAzs_SustainItems.Bandages, hpDeficit)
+            if used then
+                BadAzs_Msg("|cff00ff00Aplicando " .. used .. "...|r")
+                return
+            end
+        else
+            BadAzs_Msg("|cffff0000Sem bandagem: debuff ativo!|r")
+        end
+    end
 
     if combat then
         -- Se o alvo ja esta quase morto, o combate acaba logo - nao vale gastar
@@ -395,10 +424,9 @@ function BadAzs_Sustain()
             end
         end
 
-        local emergency = hpPct <= BadAzsCoreDB.EmergencyHPThreshold
         local shouldSustain = emergency or not targetDying
 
-        -- Vida primeiro: stone (sem cooldown compartilhado com pocoes) depois pocao,
+        -- Vida: stone (sem cooldown compartilhado com pocoes) depois pocao,
         -- ambos escolhendo o tier certo pra gravidade do deficit
         if hpPct <= BadAzsCoreDB.HPThreshold and shouldSustain then
             if BadAzs_TryBySeverity(BadAzs_SustainItems.Stones, hpDeficit) then return end
@@ -416,23 +444,6 @@ function BadAzs_Sustain()
         if UnitRace("player") == "Undead" and hpPct > 0 and hpPct < 80 then
             if BadAzs_Ready("Cannibalize") then
                 CastSpellByName("Cannibalize")
-                return
-            end
-        end
-
-        if hpPct <= BadAzsCoreDB.RestHPThreshold and not BadAzs_IsMoving() then
-            local i
-            for i = 1, 16 do
-                local debuff = UnitDebuff("player", i)
-                if debuff and string.find(debuff, "Bandage") then
-                    BadAzs_Msg("|cffff0000Sem bandagem: debuff ativo!|r")
-                    return
-                end
-            end
-
-            local used = BadAzs_TryBySeverity(BadAzs_SustainItems.Bandages, hpDeficit)
-            if used then
-                BadAzs_Msg("|cff00ff00Aplicando " .. used .. "...|r")
                 return
             end
         end
