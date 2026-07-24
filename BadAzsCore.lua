@@ -31,6 +31,7 @@ BadAzs_CoreFrame:SetScript("OnEvent", function()
         if not BadAzsCoreDB.EmergencyHPThreshold then BadAzsCoreDB.EmergencyHPThreshold = 30 end
         if not BadAzsCoreDB.TargetLowHPSkip then BadAzsCoreDB.TargetLowHPSkip = 20 end
         if not BadAzsCoreDB.Locale then BadAzsCoreDB.Locale = "EN" end
+        if BadAzsCoreDB.Locale == "PT" then BadAzsCoreDB.Locale = "BR" end
         
         local block = {
             "fail", "not ready", "enough rage", "enough mana", "Another action", "range", 
